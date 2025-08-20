@@ -93,7 +93,7 @@ cc_binary(
     name = "litert_lm_main",
     srcs = ["litert_lm_main.cc"],
     linkopts = select({
-        "//:litert_lm_link_capi_so": [],
+        "@litert//litert:litert_link_capi_so": [],
         # Export LiteRt* symbols for LiteRt accelerator shlibs.
         "@platforms//os:ios": ["-Wl,-exported_symbol,_LiteRt*"],
         "@platforms//os:macos": ["-Wl,-exported_symbol,_LiteRt*"],

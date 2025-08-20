@@ -34,7 +34,7 @@ cc_library(
         "@litert//litert/cc:litert_macros",
         "@litert//litert/cc:litert_model",
     ] + select({
-        "//:litert_lm_link_capi_so": [
+        "@litert//litert:litert_link_capi_so": [
             "@litert//litert/cc:litert_tensor_buffer",
         ],
         "//conditions:default": [
@@ -56,7 +56,7 @@ cc_test(
         "@litert//litert/cc:litert_model",
         "@litert//litert/test:matchers",
     ] + select({
-        "//:litert_lm_link_capi_so": [
+        "@litert//litert:litert_link_capi_so": [
             "@litert//litert/cc:litert_tensor_buffer",
         ],
         "//conditions:default": [
@@ -180,7 +180,7 @@ cc_library(
         "@litert//litert/c:litert_tensor_buffer_types",
         "@litert//litert/cc:litert_element_type",
     ] + select({
-        "//:litert_lm_link_capi_so": [
+        "@litert//litert:litert_link_capi_so": [
             "@litert//litert/cc:litert_tensor_buffer",
         ],
         "//conditions:default": [
@@ -200,7 +200,7 @@ cc_test(
         "@litert//litert/cc:litert_element_type",
         "@litert//litert/cc:litert_model",
     ] + select({
-        "//:litert_lm_link_capi_so": [
+        "@litert//litert:litert_link_capi_so": [
             "@litert//litert/cc:litert_tensor_buffer",
         ],
         "//conditions:default": [
@@ -214,7 +214,7 @@ cc_library(
     srcs = ["tensor_buffer_util.cc"],
     hdrs = ["tensor_buffer_util.h"],
     deps = ["@litert//litert/cc:litert_macros"] + select({
-        "//:litert_lm_link_capi_so": [
+        "@litert//litert:litert_link_capi_so": [
             "@litert//litert/cc:litert_tensor_buffer",
         ],
         "//conditions:default": [
