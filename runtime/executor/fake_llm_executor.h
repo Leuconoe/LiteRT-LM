@@ -15,15 +15,18 @@
 #ifndef THIRD_PARTY_ODML_LITERT_LM_RUNTIME_EXECUTOR_MOCK_LLM_EXECUTOR_H_
 #define THIRD_PARTY_ODML_LITERT_LM_RUNTIME_EXECUTOR_MOCK_LLM_EXECUTOR_H_
 
+#include <cstdint>
+#include <optional>
 #include <vector>
 
 #include "absl/status/status.h"  // from @com_google_absl
 #include "absl/status/statusor.h"  // from @com_google_absl
 #include "absl/strings/string_view.h"  // from @com_google_absl
+#include "absl/types/span.h"  // from @com_google_absl
 #include "litert/cc/litert_tensor_buffer.h"  // from @litert
 #include "runtime/executor/llm_executor.h"
-#include "runtime/executor/llm_executor_settings.h"
 #include "runtime/executor/llm_executor_io_types.h"
+#include "runtime/executor/llm_executor_settings.h"
 
 namespace litert::lm {
 
@@ -39,10 +42,18 @@ class FakeLlmExecutor : public LlmExecutor {
   //   tokens.
   // - decode_tokens_set: The decode tokens ([num_calls, batch_size]) are the
   //   tokens that will be returned at each time the Decode function is called.
-  FakeLlmExecutor(int vocab_size,
-                  const std::vector<std::vector<int>>& prefill_tokens_set,
-                  const std::vector<std::vector<int>>& decode_tokens_set,
-                  int batch_size = 1);
+  // - batch_size: The batch size of the LLM. It is used to determine the shape
+  //   of the output logits TensorBuffer.
+  // - audio_embedding: The audio embedding ([num_calls, num_tokens,
+  //   embedding_dim]) is the expected audio embedding that will be passed in
+  //   at each time the Prefill function is called. The Prefill function will
+  //   only return OkStatus if the input audio embedding matches the expected
+  //   audio embedding.
+  FakeLlmExecutor(
+      int vocab_size, const std::vector<std::vector<int>>& prefill_tokens_set,
+      const std::vector<std::vector<int>>& decode_tokens_set,
+      int batch_size = 1,
+      std::optional<std::vector<float>> audio_embedding = std::nullopt);
 
   absl::Status Prefill(const ExecutorInputs& inputs) override;
   absl::Status Prefill(const ExecutorInputs& inputs,
@@ -84,6 +95,7 @@ class FakeLlmExecutor : public LlmExecutor {
   int vocab_size_;
   std::vector<std::vector<int>> prefill_tokens_set_;
   std::vector<std::vector<int>> decode_tokens_set_;
+  std::optional<std::vector<float>> audio_embedding_set_;
   int batch_size_;
 
   // The number of times the Prefill function has been called.

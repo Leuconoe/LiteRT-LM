@@ -88,9 +88,10 @@ template <typename T>
         "Element type is not compatible to the target type.");
   }
 
-  auto size = tensor_buffer.Size();
-  ABSL_DCHECK(size.HasValue());
-  std::vector<T> copied_data(*size / sizeof(T));
+  LITERT_ASSIGN_OR_RETURN(auto tensor_type, tensor_buffer.TensorType());
+  LITERT_ASSIGN_OR_RETURN(auto num_elements,
+                          tensor_type.Layout().NumElements());
+  std::vector<T> copied_data(num_elements);
   tensor_buffer.Read(absl::MakeSpan(copied_data));
   return copied_data;
 }
@@ -204,20 +205,18 @@ template <typename T>
                                 "Tensor buffer is not in the host memory.");
   }
 
-  if (auto type = tensor_buffer.TensorType();
-      !type.HasValue() || type->ElementType() != ElementTypeFor<T>::kType) {
+  auto type = tensor_buffer.TensorType();
+  if (!type.HasValue() || type->ElementType() != ElementTypeFor<T>::kType) {
     return ::litert::Unexpected(
         kLiteRtStatusErrorInvalidArgument,
         "Element type is not compatible to the target type.");
   }
 
-  auto size = tensor_buffer.Size();
-  ABSL_DCHECK(size.HasValue());
   auto lock_and_addr = ::litert::TensorBufferScopedLock::Create(
       tensor_buffer, TensorBuffer::LockMode::kRead);
   ABSL_DCHECK(lock_and_addr.HasValue());
-  return absl::MakeSpan(static_cast<T*>(lock_and_addr->second),
-                        *size / sizeof(T));
+  LITERT_ASSIGN_OR_RETURN(auto num_elements, type->Layout().NumElements());
+  return absl::MakeSpan(static_cast<T*>(lock_and_addr->second), num_elements);
 }
 
 // Const version of ReferTensorBufferAsSpan() above.

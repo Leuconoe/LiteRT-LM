@@ -14,6 +14,7 @@
 
 #include "runtime/executor/fake_llm_executor.h"
 
+#include <optional>
 #include <utility>
 #include <vector>
 
@@ -65,6 +66,45 @@ TEST(FakeLlmExecutorTest, Prefill) {
   auto ids_span = ReferTensorBufferAsSpan<int>(*(*inputs.GetTextTokenIdsPtr()));
 
   (*ids_span)[2] = 3;
+  EXPECT_OK(fake_llm_executor.Prefill(inputs));
+  EXPECT_EQ(fake_llm_executor.GetCurrentStep().value(), 3);
+}
+
+TEST(FakeLlmExecutorTest, PrefillWithAudio) {
+  const std::vector<std::vector<int>> prefill_tokens_set = {{1, 2, 3}};
+  const std::vector<std::vector<int>> decode_tokens_set = {{3, 2}, {0, 0}};
+  std::vector<float> audio_embedding = {1.0f, 2.0f, 3.0f, 4.0f};
+  FakeLlmExecutor fake_llm_executor(3, prefill_tokens_set, decode_tokens_set,
+                                    /*batch_size=*/1, audio_embedding);
+
+  ExecutorInputs inputs;
+  // Create a tensor buffer with 3 elements but only the first two elements
+  // match the expected prefill tokens.
+  const std::vector<int> input_tokens = {1, 2, 3};
+  LITERT_ASSERT_OK_AND_ASSIGN(
+      auto input_tokens_buffer,
+      CopyToTensorBuffer<int>(absl::MakeSpan(input_tokens), {1, 3}));
+  inputs.SetTextData(ExecutorTextData(std::move(input_tokens_buffer)));
+
+  const std::vector<float> input_audio_embedding = {1.0f, 2.0f, 3.0f, 0.0f};
+  LITERT_ASSERT_OK_AND_ASSIGN(
+      auto input_audio_embedding_buffer,
+      CopyToTensorBuffer<float>(absl::MakeSpan(input_audio_embedding),
+                                {1, 4, 1}));
+  inputs.SetAudioData(
+      ExecutorAudioData(std::move(input_audio_embedding_buffer), std::nullopt));
+
+  // Fail because the input audio embedding does not match the expected the
+  // audio embedding set.
+  EXPECT_THAT(fake_llm_executor.Prefill(inputs),
+              StatusIs(absl::StatusCode::kInvalidArgument));
+
+  // Succeed because the input audio embedding matches the expected audio
+  // embedding set.
+  auto audio_embedding_span =
+      ReferTensorBufferAsSpan<float>(*(*inputs.GetAudioEmbeddingsPtr()));
+  (*audio_embedding_span)[3] = 4.0f;
+
   EXPECT_OK(fake_llm_executor.Prefill(inputs));
   EXPECT_EQ(fake_llm_executor.GetCurrentStep().value(), 3);
 }

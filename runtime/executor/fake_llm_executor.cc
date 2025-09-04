@@ -15,6 +15,7 @@
 #include "runtime/executor/fake_llm_executor.h"
 
 #include <limits>
+#include <optional>
 #include <utility>
 #include <vector>
 
@@ -54,7 +55,8 @@ void DecodeIdsToLogits(const std::vector<int>& ids, int vocab_size,
 
 // Checks if the given expected and actual spans are equivalent in terms of the
 // size and values.
-absl::Status CheckEquivalent(absl::Span<int> expected, absl::Span<int> actual) {
+template <typename T>
+absl::Status CheckEquivalent(absl::Span<T> expected, absl::Span<T> actual) {
   if (expected.size() != actual.size()) {
     return absl::InvalidArgumentError(absl::StrCat("Expected token size is ",
                                                    expected.size(), " but got ",
@@ -74,10 +76,12 @@ absl::Status CheckEquivalent(absl::Span<int> expected, absl::Span<int> actual) {
 
 FakeLlmExecutor::FakeLlmExecutor(
     int vocab_size, const std::vector<std::vector<int>>& prefill_tokens_set,
-    const std::vector<std::vector<int>>& decode_tokens_set, int batch_size)
+    const std::vector<std::vector<int>>& decode_tokens_set, int batch_size,
+    std::optional<std::vector<float>> audio_embedding)
     : vocab_size_(vocab_size),
       prefill_tokens_set_(prefill_tokens_set),
       decode_tokens_set_(decode_tokens_set),
+      audio_embedding_set_(std::move(audio_embedding)),
       batch_size_(batch_size),
       prefill_times_(0),
       decode_times_(0),
@@ -98,12 +102,25 @@ absl::Status FakeLlmExecutor::Prefill(const ExecutorInputs& inputs) {
         "expected prefill tokens.",
         prefill_times_));
   }
-  auto input_span =
-      ReferTensorBufferAsSpan<int>(*(*inputs.GetTextTokenIdsPtr()));
-  RETURN_IF_ERROR(CheckEquivalent(
-      absl::MakeSpan(prefill_tokens_set_[prefill_times_]), *input_span));
+  if (inputs.GetAudioDataPtr().ok()) {
+    if (!audio_embedding_set_.has_value()) {
+      return absl::InvalidArgumentError(
+          "Audio embedding is not set in the fake LLM executor.");
+    }
+    ASSIGN_OR_RETURN(auto audio_embeddings, inputs.GetAudioEmbeddingsPtr());
+    LITERT_ASSIGN_OR_RETURN(auto audio_embeddings_span,
+                            ReferTensorBufferAsSpan<float>(*audio_embeddings));
+    RETURN_IF_ERROR(CheckEquivalent(absl::MakeSpan(*audio_embedding_set_),
+                                    audio_embeddings_span));
+  }
+  ASSIGN_OR_RETURN(auto text_data, inputs.GetTextDataPtr());
+  auto text_token_ids_span =
+      ReferTensorBufferAsSpan<int>(text_data->GetTokenIds());
+  RETURN_IF_ERROR(
+      CheckEquivalent(absl::MakeSpan(prefill_tokens_set_[prefill_times_]),
+                      *text_token_ids_span));
   prefill_times_++;
-  current_step_ += input_span->size();
+  current_step_ += text_token_ids_span->size();
   return absl::OkStatus();
 }
 
