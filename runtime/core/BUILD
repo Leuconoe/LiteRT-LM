@@ -102,7 +102,6 @@ cc_library(
         "@com_google_absl//absl/strings",
         "@com_google_absl//absl/strings:string_view",
         "@com_google_absl//absl/types:span",
-        "@litert//litert/cc:litert_macros",
         "//runtime/components:sampler",
         "//runtime/components:stop_token_detector",
         "//runtime/components:token_id_util",
@@ -114,9 +113,10 @@ cc_library(
         "//runtime/util:litert_status_util",
     ] + select({
         "@litert//litert:litert_link_capi_so": [
-            "@litert//litert/cc:litert_tensor_buffer",
+            "@litert//litert/cc:litert_api_with_dynamic_runtime",
         ],
         "//conditions:default": [
+            "@litert//litert/cc:litert_macros",
             "@litert//litert/cc/internal:litert_tensor_buffer",
         ],
     }),
@@ -226,7 +226,7 @@ cc_test(
         "//runtime/util:test_utils",
     ] + select({
         "@litert//litert:litert_link_capi_so": [
-            "@litert//litert/cc:litert_tensor_buffer",
+            "@litert//litert/cc:litert_api_with_dynamic_runtime",
         ],
         "//conditions:default": [
             "@litert//litert/cc/internal:litert_tensor_buffer",

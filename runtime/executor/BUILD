@@ -110,10 +110,6 @@ cc_library(
         "@com_google_absl//absl/status",
         "@com_google_absl//absl/status:statusor",
         "@com_google_absl//absl/strings",
-        "@litert//litert/cc:litert_buffer_ref",
-        "@litert//litert/cc:litert_element_type",
-        "@litert//litert/cc:litert_expected",
-        "@litert//litert/cc:litert_macros",
         "//runtime/components:model_resources",
         "//runtime/components:model_resources_litert_lm",
         "//runtime/components:model_resources_task",
@@ -127,10 +123,13 @@ cc_library(
         "//runtime/util:scoped_file",
     ] + select({
         "@litert//litert:litert_link_capi_so": [
-            "@litert//litert/cc:litert_model",
-            "@litert//litert/cc:litert_tensor_buffer",
+            "@litert//litert/cc:litert_api_with_dynamic_runtime",
         ],
         "//conditions:default": [
+            "@litert//litert/cc:litert_buffer_ref",
+            "@litert//litert/cc:litert_element_type",
+            "@litert//litert/cc:litert_expected",
+            "@litert//litert/cc:litert_macros",
             "@litert//litert/cc/internal:litert_model",
             "@litert//litert/cc/internal:litert_tensor_buffer",
         ],
@@ -196,9 +195,6 @@ cc_library(
         "@com_google_absl//absl/strings",
         "@com_google_absl//absl/strings:string_view",
         "@com_google_absl//absl/types:span",
-        "@litert//litert/c:litert_common",
-        "@litert//litert/c:litert_environment_options",
-        "@litert//litert/cc:litert_expected",
         "//runtime/components:model_resources",
         "//runtime/components:model_resources_litert_lm",
         "//runtime/components:model_resources_task",
@@ -210,16 +206,12 @@ cc_library(
         "//runtime/util:litert_status_util",
     ] + select({
         "@litert//litert:litert_link_capi_so": [
-            "@litert//litert/cc:litert_compiled_model",
-            "@litert//litert/cc:litert_environment",
-            "@litert//litert/cc:litert_model",
-            "@litert//litert/cc:litert_options",
-            "@litert//litert/cc:litert_tensor_buffer",
-            "@litert//litert/cc/options:litert_cpu_options",
-            "@litert//litert/cc/options:litert_gpu_options",
-            "@litert//litert/cc/options:litert_runtime_options",
+            "@litert//litert/cc:litert_api_with_dynamic_runtime",
         ],
         "//conditions:default": [
+            "@litert//litert/c:litert_common",
+            "@litert//litert/c:litert_environment_options",
+            "@litert//litert/cc:litert_expected",
             "@litert//litert/cc/internal:litert_compiled_model",
             "@litert//litert/cc/internal:litert_cpu_options",
             "@litert//litert/cc/internal:litert_environment",
@@ -268,14 +260,14 @@ cc_library(
         "@com_google_absl//absl/strings:string_view",
         "@com_google_absl//absl/time",
         "@com_google_absl//absl/types:span",
-        "@litert//litert/cc:litert_macros",
         "//runtime/util:convert_tensor_buffer",
         "//runtime/util:litert_status_util",
     ] + select({
         "@litert//litert:litert_link_capi_so": [
-            "@litert//litert/cc:litert_tensor_buffer",
+            "@litert//litert/cc:litert_api_with_dynamic_runtime",
         ],
         "//conditions:default": [
+            "@litert//litert/cc:litert_macros",
             "@litert//litert/cc/internal:litert_tensor_buffer",
         ],
     }),
@@ -319,7 +311,7 @@ cc_library(
         "@com_google_absl//absl/strings:string_view",
     ] + select({
         "@litert//litert:litert_link_capi_so": [
-            "@litert//litert/cc:litert_tensor_buffer",
+            "@litert//litert/cc:litert_api_with_dynamic_runtime",
         ],
         "//conditions:default": [
             "@litert//litert/cc/internal:litert_tensor_buffer",
@@ -346,12 +338,6 @@ cc_library(
         "@com_google_absl//absl/strings:string_view",
         "@com_google_absl//absl/time",
         "@com_google_absl//absl/types:span",
-        "@litert//litert/c:litert_common",
-        "@litert//litert/c:litert_model",
-        "@litert//litert/cc:litert_element_type",
-        "@litert//litert/cc:litert_expected",
-        "@litert//litert/cc:litert_layout",
-        "@litert//litert/cc:litert_macros",
         "//runtime/components:model_resources",
         "//runtime/components:model_resources_litert_lm",
         "//runtime/components:model_resources_task",
@@ -361,12 +347,15 @@ cc_library(
         "//runtime/util:litert_status_util",
     ] + select({
         "@litert//litert:litert_link_capi_so": [
-            "@litert//litert/cc:litert_compiled_model",
-            "@litert//litert/cc:litert_environment",
-            "@litert//litert/cc:litert_model",
-            "@litert//litert/cc:litert_tensor_buffer",
+            "@litert//litert/cc:litert_api_with_dynamic_runtime",
         ],
         "//conditions:default": [
+            "@litert//litert/c:litert_common",
+            "@litert//litert/c:litert_model",
+            "@litert//litert/cc:litert_element_type",
+            "@litert//litert/cc:litert_expected",
+            "@litert//litert/cc:litert_layout",
+            "@litert//litert/cc:litert_macros",
             "@litert//litert/cc/internal:litert_compiled_model",
             "@litert//litert/cc/internal:litert_environment",
             "@litert//litert/cc/internal:litert_google_tensor_options",
@@ -429,7 +418,7 @@ cc_library(
         "//runtime/util:logging_tensor_buffer",
     ] + select({
         "@litert//litert:litert_link_capi_so": [
-            "@litert//litert/cc:litert_tensor_buffer",
+            "@litert//litert/cc:litert_api_with_dynamic_runtime",
         ],
         "//conditions:default": [
             "@litert//litert/cc/internal:litert_tensor_buffer",
@@ -445,15 +434,14 @@ cc_test(
         "@com_google_googletest//:gtest_main",
         "@com_google_absl//absl/status:statusor",
         "@com_google_absl//absl/types:span",
-        "@litert//litert/c:litert_tensor_buffer",
-        "@litert//litert/cc:litert_element_type",
-        "@litert//litert/cc:litert_layout",
     ] + select({
         "@litert//litert:litert_link_capi_so": [
-            "@litert//litert/cc:litert_model",
-            "@litert//litert/cc:litert_tensor_buffer",
+            "@litert//litert/cc:litert_api_with_dynamic_runtime",
         ],
         "//conditions:default": [
+            "@litert//litert/c:litert_tensor_buffer",
+            "@litert//litert/cc:litert_element_type",
+            "@litert//litert/cc:litert_layout",
             "@litert//litert/cc/internal:litert_model",
             "@litert//litert/cc/internal:litert_tensor_buffer",
         ],
@@ -474,7 +462,7 @@ cc_library(
         "@com_google_absl//absl/status:statusor",
     ] + select({
         "@litert//litert:litert_link_capi_so": [
-            "@litert//litert/cc:litert_tensor_buffer",
+            "@litert//litert/cc:litert_api_with_dynamic_runtime",
         ],
         "//conditions:default": [
             "@litert//litert/cc/internal:litert_tensor_buffer",
@@ -500,23 +488,16 @@ cc_library(
         "@com_google_absl//absl/strings",
         "@com_google_absl//absl/strings:string_view",
         "@com_google_absl//absl/types:span",
-        "@litert//litert/c:litert_common",
-        "@litert//litert/c:litert_tensor_buffer_types",
-        "@litert//litert/cc:litert_macros",
         "//runtime/components:model_resources",
         "//runtime/util:litert_status_util",
     ] + select({
         "@litert//litert:litert_link_capi_so": [
-            "@litert//litert/cc:litert_compiled_model",
-            "@litert//litert/cc:litert_environment",
-            "@litert//litert/cc:litert_model",
-            "@litert//litert/cc:litert_options",
-            "@litert//litert/cc:litert_tensor_buffer",
-            "@litert//litert/cc/options:litert_cpu_options",
-            "@litert//litert/cc/options:litert_gpu_options",
-            "@litert//litert/cc/options:litert_runtime_options",
+            "@litert//litert/cc:litert_api_with_dynamic_runtime",
         ],
         "//conditions:default": [
+            "@litert//litert/c:litert_common",
+            "@litert//litert/c:litert_tensor_buffer_types",
+            "@litert//litert/cc:litert_macros",
             "@litert//litert/cc/internal:litert_compiled_model",
             "@litert//litert/cc/internal:litert_cpu_options",
             "@litert//litert/cc/internal:litert_environment",
@@ -561,7 +542,7 @@ cc_library(
         "@com_google_absl//absl/status:statusor",
     ] + select({
         "@litert//litert:litert_link_capi_so": [
-            "@litert//litert/cc:litert_tensor_buffer",
+            "@litert//litert/cc:litert_api_with_dynamic_runtime",
         ],
         "//conditions:default": [
             "@litert//litert/cc/internal:litert_tensor_buffer",
@@ -586,25 +567,18 @@ cc_library(
         "@com_google_absl//absl/status:statusor",
         "@com_google_absl//absl/strings",
         "@com_google_absl//absl/types:span",
-        "@litert//litert/c:litert_common",
-        "@litert//litert/c:litert_tensor_buffer_types",
-        "@litert//litert/cc:litert_element_type",
-        "@litert//litert/cc:litert_layout",
-        "@litert//litert/cc:litert_macros",
         "//runtime/components:model_resources",
         "//runtime/util:litert_status_util",
     ] + select({
         "@litert//litert:litert_link_capi_so": [
-            "@litert//litert/cc:litert_compiled_model",
-            "@litert//litert/cc:litert_environment",
-            "@litert//litert/cc:litert_model",
-            "@litert//litert/cc:litert_options",
-            "@litert//litert/cc:litert_tensor_buffer",
-            "@litert//litert/cc/options:litert_cpu_options",
-            "@litert//litert/cc/options:litert_gpu_options",
-            "@litert//litert/cc/options:litert_runtime_options",
+            "@litert//litert/cc:litert_api_with_dynamic_runtime",
         ],
         "//conditions:default": [
+            "@litert//litert/c:litert_common",
+            "@litert//litert/c:litert_tensor_buffer_types",
+            "@litert//litert/cc:litert_element_type",
+            "@litert//litert/cc:litert_layout",
+            "@litert//litert/cc:litert_macros",
             "@litert//litert/cc/internal:litert_compiled_model",
             "@litert//litert/cc/internal:litert_cpu_options",
             "@litert//litert/cc/internal:litert_environment",
