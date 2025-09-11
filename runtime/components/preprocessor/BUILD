@@ -308,7 +308,6 @@ cc_library(
         "//runtime/engine:io_types",
         "//runtime/util:convert_tensor_buffer",
         "//runtime/util:litert_status_util",
-        "@stb//:stb_image",
         "@stb//:stb_image_hdrs",
     ] + select({
         "@litert//litert:litert_link_capi_so": [
