@@ -40,7 +40,6 @@
 #include "schema/core/litertlm_header_schema_generated.h"
 #include "schema/core/litertlm_utils.h"
 #include "sentencepiece_processor.h"  // from @sentencepiece
-#include "tensorflow/compiler/mlir/lite/allocation.h"  // from @org_tensorflow
 #include "tflite/model_builder.h"  // from @litert
 #include "tflite/stderr_reporter.h"  // from @litert
 #include "zconf.h"  // from @zlib

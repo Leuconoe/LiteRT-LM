@@ -54,7 +54,6 @@ cc_library(
         "//runtime/util:memory_mapped_file",
         "//runtime/util:scoped_file",
         "@sentencepiece//:sentencepiece_processor",
-        "@org_tensorflow//tensorflow/compiler/mlir/lite:allocation",
         "@litert//tflite:framework",
         "@zlib//:zlib",
     ],
