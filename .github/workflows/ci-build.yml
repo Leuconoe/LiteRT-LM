@@ -22,7 +22,7 @@ concurrency:
 jobs:
   presubmit:
     name: "Presubmit"
-    runs-on: Linux_runner_8_core
+    runs-on: LiteRT_Linux_x64
     permissions:
       actions: write  # For gh cache delete.
       contents: write  # For gh release upload.

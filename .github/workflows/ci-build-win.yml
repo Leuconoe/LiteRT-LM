@@ -22,12 +22,12 @@ concurrency:
 jobs:
   presubmit:
     name: "Presubmit-Win"
-    runs-on: windows-latest
+    runs-on: Windows_x64
     permissions:
       actions: write  # For gh cache delete.
       contents: write  # For gh release upload.
     env:
-      # Clear ANDROID_NDK_HOME as windows-latest has NDK where jobs don't have permission for
+      # Clear ANDROID_NDK_HOME as Windows_x64 has NDK where jobs don't have permission for
       # androidndk rulesto create symlinks.
       ANDROID_NDK_HOME:
       GH_TOKEN: ${{ github.token }}  # For gh release upload.
