@@ -19,6 +19,7 @@
 
 #include "absl/status/status.h"  // from @com_google_absl
 #include "absl/status/statusor.h"  // from @com_google_absl
+#include "absl/strings/escaping.h"  // from @com_google_absl
 #include "nlohmann/json.hpp"  // from @nlohmann_json
 #include "runtime/util/memory_mapped_file.h"
 
@@ -38,7 +39,12 @@ absl::StatusOr<std::unique_ptr<MemoryMappedFile>> LoadItemData(
       return MemoryMappedFile::Create(item["path"].get<std::string>());
     }
     if (item.contains("blob")) {
-      return InMemoryFile::Create(item["blob"]);
+      std::string blob_b64 = item["blob"].get<std::string>();
+      std::string blob;
+      if (!absl::Base64Unescape(blob_b64, &blob)) {
+        return absl::InvalidArgumentError("Failed to decode base64 blob.");
+      }
+      return InMemoryFile::Create(blob);
     }
     return absl::InvalidArgumentError(
         "Audio or image item must contain a path or blob.");

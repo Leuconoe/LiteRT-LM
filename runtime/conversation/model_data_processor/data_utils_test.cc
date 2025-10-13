@@ -66,7 +66,7 @@ TEST(DataUtilsTest, LoadItemData_ImageItemWithBlob) {
   ASSERT_OK_AND_ASSIGN(std::unique_ptr<MemoryMappedFile> memory_mapped_file,
                        LoadItemData({
                            {"type", "image"},
-                           {"blob", "image_contents"},
+                           {"blob", "aW1hZ2VfY29udGVudHM="},
                        }));
   EXPECT_EQ(std::string(static_cast<const char*>(memory_mapped_file->data()),
                         memory_mapped_file->length()),
@@ -90,7 +90,7 @@ TEST(DataUtilsTest, LoadItemData_AudioItemWithBlob) {
   ASSERT_OK_AND_ASSIGN(std::unique_ptr<MemoryMappedFile> memory_mapped_file,
                        LoadItemData({
                            {"type", "audio"},
-                           {"blob", "audio_contents"},
+                           {"blob", "YXVkaW9fY29udGVudHM="},
                        }));
   EXPECT_EQ(std::string(static_cast<const char*>(memory_mapped_file->data()),
                         memory_mapped_file->length()),
@@ -118,6 +118,17 @@ TEST(DataUtilsTest, LoadItemData_InvalidItem) {
   EXPECT_THAT(
       status.message(),
       testing::HasSubstr("Audio or image item must contain a path or blob."));
+}
+
+TEST(DataUtilsTest, LoadItemData_ImageItemWithInvalidBase64Blob) {
+  auto result = LoadItemData({
+      {"type", "image"},
+      {"blob", "invalid base64"},
+  });
+  EXPECT_THAT(result.status(),
+              testing::status::StatusIs(absl::StatusCode::kInvalidArgument));
+  EXPECT_THAT(result.status().message(),
+              testing::HasSubstr("Failed to decode base64 blob."));
 }
 
 }  // namespace

@@ -38,9 +38,9 @@ cc_library(
     srcs = ["data_utils.cc"],
     hdrs = ["data_utils.h"],
     deps = [
-        "@com_google_absl//absl/memory",
         "@com_google_absl//absl/status",
         "@com_google_absl//absl/status:statusor",
+        "@com_google_absl//absl/strings",
         "@nlohmann_json//:json",
         "//runtime/util:memory_mapped_file",
     ],
@@ -99,14 +99,11 @@ cc_library(
         ":generic_data_processor",
         ":generic_data_processor_config",
         ":model_data_processor",
+        "@com_google_absl//absl/log:absl_log",
         "@com_google_absl//absl/status",
         "@com_google_absl//absl/status:statusor",
-        "@com_google_absl//absl/strings:string_view",
-        "@nlohmann_json//:json",
         "//runtime/conversation:io_types",
-        "//runtime/engine:io_types",
         "//runtime/proto:llm_model_type_cc_proto",
-        "//runtime/util:litert_status_util",
     ],
 )
 
