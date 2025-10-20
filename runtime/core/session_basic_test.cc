@@ -613,7 +613,34 @@ TEST_F(SessionBasicTest, RunTextScoringEmptyTargetTextFailure) {
   std::vector<absl::string_view> target_text;
   EXPECT_THAT((*session)->RunTextScoring(target_text),
               testing::status::StatusIs(absl::StatusCode::kInvalidArgument,
-                                        "Target text is empty."));
+                                        "Target text size should be 1."));
+}
+
+TEST_F(SessionBasicTest, RunTextScoringMultipleTargetTextFailure) {
+  const std::vector<std::vector<int>> stop_token_ids = {{2294}};
+  SessionConfig session_config = SessionConfig::CreateDefault();
+  session_config.GetMutableSamplerParams() = sampler_params_;
+  session_config.GetMutableStopTokenIds() = stop_token_ids;
+  session_config.SetStartTokenId(2);
+  session_config.SetSamplerBackend(Backend::CPU);
+  ASSERT_OK_AND_ASSIGN(
+      auto executor,
+      CreateFakeLlmExecutor(
+          // "Hello World!"
+          /*prefill_tokens=*/{{2, 90, 547, 58, 735, 210, 466, 2294}},
+          // "How's it going?"
+          /*decode_tokens=*/{
+              {224}, {24}, {8}, {66}, {246}, {18}, {2295}, {2294}}));
+  auto session = SessionBasic::Create(
+      executor.get(), tokenizer_.get(), /*vision_executor=*/nullptr,
+      /*audio_executor=*/nullptr, session_config, std::nullopt,
+      worker_thread_pool_.get());
+  std::vector<absl::string_view> target_text;
+  target_text.push_back("How's it going?");
+  target_text.push_back("How are you?");
+  EXPECT_THAT((*session)->RunTextScoring(target_text),
+              testing::status::StatusIs(absl::StatusCode::kInvalidArgument,
+                                        "Target text size should be 1."));
 }
 
 TEST_F(SessionBasicTest, RunTextScoringSuccess) {

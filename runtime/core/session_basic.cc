@@ -598,8 +598,9 @@ absl::StatusOr<Responses> SessionBasic::GenerateContent(
 
 absl::StatusOr<Responses> SessionBasic::RunTextScoring(
     const std::vector<absl::string_view>& target_text) {
-  if (target_text.empty()) {
-    return absl::InvalidArgumentError("Target text is empty.");
+  // Currently batch scoring is not supported by the models.
+  if (target_text.size() != 1) {
+    return absl::InvalidArgumentError("Target text size should be 1.");
   }
   std::vector<int> decoded_ids(session_config_.GetNumOutputCandidates(),
                                last_prefill_token_id_);
