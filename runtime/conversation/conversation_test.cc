@@ -919,6 +919,51 @@ class CancelledMessageCallbacks : public MessageCallbacks {
   absl::Notification& done_;
 };
 
+TEST(ConversationAccessHistoryTest, AccessHistory) {
+  // Create a Conversation.
+  ASSERT_OK_AND_ASSIGN(auto model_assets,
+                       ModelAssets::Create(GetTestdataPath(kTestLlmPath)));
+  ASSERT_OK_AND_ASSIGN(auto engine_settings, EngineSettings::CreateDefault(
+                                                 model_assets, Backend::CPU));
+  engine_settings.GetMutableMainExecutorSettings().SetCacheDir(":nocache");
+  engine_settings.GetMutableMainExecutorSettings().SetMaxNumTokens(10);
+  ASSERT_OK_AND_ASSIGN(auto engine, Engine::CreateEngine(engine_settings));
+  ASSERT_OK_AND_ASSIGN(auto config, ConversationConfig::CreateDefault(*engine));
+  ASSERT_OK_AND_ASSIGN(auto conversation,
+                       Conversation::Create(*engine, config));
+
+  // Send a message to the LLM.
+  JsonMessage user_message = {{"role", "user"}, {"content", "Hello world!"}};
+  JsonMessage expected_assistant_message = {
+      {"role", "assistant"},
+      {"content",
+       {{{"type", "text"},
+         {"text", "TarefaByte دارایेत्र investigaciónప్రదేశসাইন"}}}}};
+  absl::Notification done;
+  auto message_callbacks =
+      std::make_unique<TestMessageCallbacks>(expected_assistant_message, done);
+  EXPECT_OK(conversation->SendMessageAsync(user_message,
+                                           std::move(message_callbacks)));
+  done.WaitForNotification();
+
+  // Get the history copy.
+  auto history = conversation->GetHistory();
+  ASSERT_THAT(history.size(), 2);
+  ASSERT_THAT(history.back(),
+              testing::VariantWith<JsonMessage>(expected_assistant_message));
+
+  // Access the history with visitor function, and copy the last message.
+  Message last_message;
+  conversation->AccessHistory(
+      [&last_message](const std::vector<Message>& history_view) {
+        // Copy the last message to last_message. So we don't need to
+        // copy the whole history, if we only need the last message.
+        last_message = history_view.back();
+      });
+  EXPECT_THAT(last_message,
+              testing::VariantWith<JsonMessage>(expected_assistant_message));
+}
+
 class ConversationCancellationTest : public testing::TestWithParam<bool> {
  protected:
   bool use_benchmark_info_ = GetParam();

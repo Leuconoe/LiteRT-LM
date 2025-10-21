@@ -22,6 +22,7 @@
 #include <vector>
 
 #include "absl/base/thread_annotations.h"  // from @com_google_absl
+#include "absl/functional/any_invocable.h"  // from @com_google_absl
 #include "absl/status/status.h"  // from @com_google_absl
 #include "absl/status/statusor.h"  // from @com_google_absl
 #include "absl/synchronization/mutex.h"  // from @com_google_absl
@@ -190,9 +191,32 @@ class Conversation {
       std::optional<DataProcessorArguments> args = std::nullopt);
 
   // Returns the history of the conversation.
+  // Note: the return value is a copy of the history, which may be expensive
+  // for large history.
   std::vector<Message> GetHistory() const {
     absl::MutexLock lock(&history_mutex_);  // NOLINT
     return history_;
+  }
+
+  // Provides safe access to the conversation history without copying.
+  // The provided visitor function is executed while the history mutex is held.
+  // Args:
+  // - visitor: The visitor function takes a const reference to the history
+  //  vector.
+  //
+  // Example usage:
+  //
+  //   Message assistant_message;
+  //   conversation->AccessHistory(
+  //       [&assistant_message](const std::vector<Message>& history) {
+  //         // Copy the last message to assistant_message. So we don't need to
+  //         // copy the whole history, if we only need the last message.
+  //         assistant_message = history.back();
+  //       });
+  void AccessHistory(absl::AnyInvocable<void(const std::vector<Message>&) const>
+                         visitor) const {
+    absl::MutexLock lock(&history_mutex_);  // NOLINT
+    visitor(history_);
   }
 
   // Returns the configuration used for creating the Conversation.
