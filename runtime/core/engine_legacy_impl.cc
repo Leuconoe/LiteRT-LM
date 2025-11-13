@@ -54,7 +54,6 @@
 #include "runtime/proto/sampler_params.pb.h"
 #include "runtime/util/metadata_util.h"
 #include "runtime/util/model_asset_bundle_resources.h"
-#include "runtime/util/scoped_file.h"
 #include "util/task/status_macros.h"
 
 namespace litert::lm {
@@ -283,18 +282,32 @@ absl::StatusOr<std::unique_ptr<Engine>> Engine::CreateEngine(
 
   std::unique_ptr<AudioExecutor> audio_executor;
   if (engine_settings.GetAudioExecutorSettings().has_value()) {
-    const auto& backend =
+    const auto audio_backend =
         engine_settings.GetAudioExecutorSettings()->GetBackend();
     ASSIGN_OR_RETURN(
         auto audio_executor_settings,
         AudioExecutorSettings::CreateDefault(
             engine_settings.GetMainExecutorSettings().GetModelAssets(),
             engine_settings.GetMainExecutorSettings().GetMaxNumTokens(),
-            backend));
-    if (backend == Backend::GPU_ARTISAN) {
-      ASSIGN_OR_RETURN(audio_executor,
-                       oi::GpuArtisanAudioExecutor::Create(
-                           audio_executor_settings));
+            audio_backend));
+    if (audio_backend == Backend::GPU_ARTISAN) {
+      if (engine_settings.GetMainExecutorSettings().GetBackend() ==
+          Backend::GPU_ARTISAN) {
+        // Both the text decoder and audio encoder are GPU_ARTISAN, assuming
+        // they are bundled together in the same hand-written weight section.
+        ASSIGN_OR_RETURN(
+            audio_executor,
+            oi::GpuArtisanAudioExecutor::Create(
+                audio_executor_settings,
+                *(model_resources->litert_lm_model_resources.get())));
+
+      } else {
+        // Only the audio encoder is GPU_ARTISAN and the text decoder is from
+        // converted model. In which case, the audio encoder hand-written model
+        // is stored in the separate section.
+        ASSIGN_OR_RETURN(audio_executor, oi::GpuArtisanAudioExecutor::Create(
+                                             audio_executor_settings));
+      }
     } else {
       ASSIGN_OR_RETURN(audio_executor, AudioLiteRtCompiledModelExecutor::Create(
                                            audio_executor_settings, lrt_env));
