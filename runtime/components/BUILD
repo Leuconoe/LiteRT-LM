@@ -40,6 +40,16 @@ config_setting(
 )
 
 config_setting(
+    name = "android_webgpu",
+    constraint_values = [
+        "@platforms//os:android",
+    ],
+    values = {
+        "copt": "-DLITERT_USE_WEBGPU_ACCELERATOR",
+    },
+)
+
+config_setting(
     name = "disable_sentencepiece_tokenizer",
     define_values = {
         "DISABLE_SENTENCEPIECE_TOKENIZER": "1",
@@ -355,8 +365,6 @@ cc_library(
     deps = select({
         # If CAPI is linked dynamically, need to link the sampler dynamically as well.
         "@litert//litert:litert_link_capi_so": [],
-        "@platforms//os:android": [
-        ],
         "@platforms//os:ios": [],
         "//conditions:default": [
         ],
