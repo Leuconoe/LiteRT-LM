@@ -206,8 +206,8 @@ absl::Status AudioPreprocessorMiniAudio::ToLogMelSpectrogram(
         absl::MakeSpan(spectrograms_double.data() + i * fft_bins, fft_bins),
         &tmp_log_mel));
     for (int j = 0; j < tmp_log_mel.size(); ++j) {
-      float log_mel =
-          std::max(std::logf(tmp_log_mel[j]), config_.GetMelFloor());
+      float log_mel = std::max(std::log(static_cast<float>(tmp_log_mel[j])),
+                               config_.GetMelFloor());
       log_mel = (log_mel - AudioPreprocessorConfig::kUsmMelMean[j]) /
                 AudioPreprocessorConfig::kUsmMelStdDev[j];
       log_mel_spectrograms.push_back(log_mel);
