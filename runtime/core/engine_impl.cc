@@ -61,7 +61,7 @@ namespace {
 // environment during the whole application lifetime. This is required for GPU
 // LiteRT environment. See b/454383477 for more details.
 absl::StatusOr<Environment&> GetEnvironment(
-    const EngineSettings& engine_settings, ModelResources& model_resources) {
+    EngineSettings& engine_settings, ModelResources& model_resources) {
   // Helper must be available until LlmLiteRtCompiledModelExecutor::Create() is
   // called. Since env is used multiple times, it should also be static.
   static absl::NoDestructor<MagicNumberConfigsHelper> helper;
@@ -79,6 +79,19 @@ absl::StatusOr<Environment&> GetEnvironment(
                   ->configure_magic_numbers) {
             env_options = helper->GetLiteRtEnvOptions(model_resources,
                                                       main_executor_settings);
+            // Disable madvise original shared tensors for GPU if the model has
+            // magic numbers as it may revert the magic number replacements.
+            if (helper->magic_number_configs() &&
+                helper->magic_number_configs()->num_configs > 0) {
+              auto& executor_settings =
+                  engine_settings.GetMutableMainExecutorSettings();
+              AdvancedSettings new_settings;
+              if (executor_settings.GetAdvancedSettings()) {
+                new_settings = *executor_settings.GetAdvancedSettings();
+              }
+              new_settings.gpu_madvise_original_shared_tensors = false;
+              executor_settings.SetAdvancedSettings(new_settings);
+            }
           }
         } else {
 #if defined(LITERT_DISABLE_NPU)
