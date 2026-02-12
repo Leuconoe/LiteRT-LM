@@ -923,6 +923,13 @@ absl::Status LlmLiteRtCompiledModelExecutorBase::CreatePrefillInputBuffers(
     prefill_input_buffers[signatures_.input_attn_mask.value()] =
         std::move(*attn_mask_buffer);
   }
+  if (signatures_.input_int32_param.has_value()) {
+    gpu_optimized_single_buffer_cache_ = true;
+    auto param_tensor_buffer = compiled_model_.CreateInputBuffer(
+        prefill_signature, signatures_.input_int32_param.value());
+    prefill_input_buffers[signatures_.input_int32_param.value()] =
+        std::move(*param_tensor_buffer);
+  }
   return absl::OkStatus();
 }
 
@@ -1167,6 +1174,11 @@ absl::Status LlmLiteRtCompiledModelExecutorBase::PrefillInternal(
           start_step,
           /*steps=*/prefill_length + input_idx));
     }
+    if (signatures_.input_int32_param.has_value()) {
+      RETURN_IF_ERROR(FillSingleBufferCacheParamTensor(
+          prefill_input_buffers[signatures_.input_int32_param.value()],
+          start_step, ids.size()));
+    }
 
     // Add the last token of the current input as a pending input token, to be
     // used in the next prefill or decode.
@@ -1387,6 +1399,11 @@ absl::Status LlmLiteRtCompiledModelExecutorBase::DecodeInternal(
     RETURN_IF_ERROR(FillAttentionMask(
         decode_input_buffers_[signatures_.input_attn_mask.value()], step,
         /*steps=*/1));
+  }
+  if (signatures_.input_int32_param.has_value()) {
+    RETURN_IF_ERROR(FillSingleBufferCacheParamTensor(
+        decode_input_buffers_[signatures_.input_int32_param.value()],
+        step + 1, 1));
   }
 
   return BindTensorsAndRunDecode(&output_logits);

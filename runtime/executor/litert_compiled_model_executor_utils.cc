@@ -292,23 +292,25 @@ absl::Status InitializeAttentionMask(litert::TensorBuffer& mask, bool is_f16) {
   return absl::OkStatus();
 }
 
-absl::Status UploadInt32ParamTensorData(litert::TensorBuffer& param_tensor,
-                                        int token_index_offset,
-                                        int active_tokens,
-                                        int active_tokens_aligned) {
+absl::Status FillSingleBufferCacheParamTensor(
+    litert::TensorBuffer& param_tensor, int start_index, int update_length) {
   // TODO(sulemanshahid): Local attention optimization is not supported in the
   // OpenCL implementation, enable for WebGPU.
-  constexpr int kNumRuntimeParams = 7;
-  const int32_t runtime_params[kNumRuntimeParams] = {
-      token_index_offset, active_tokens, active_tokens_aligned, 0, 0, 0, 0};
-  auto param_tensor_lock_and_addr = litert::TensorBufferScopedLock::Create(
-      param_tensor, litert::TensorBuffer::LockMode::kWrite);
-  RET_CHECK(param_tensor_lock_and_addr)
-      << "Failed to lock param tensor buffer.";
-  int32_t* param_tensor_ptr =
-      static_cast<int32_t*>(param_tensor_lock_and_addr->second);
-  std::memcpy(param_tensor_ptr, runtime_params,
-              sizeof(int32_t) * kNumRuntimeParams);
+  LITERT_ASSIGN_OR_RETURN(auto packed_size, param_tensor.PackedSize());
+  LITERT_ASSIGN_OR_RETURN(
+      auto param_tensor_lock_and_addr,
+      TensorBufferScopedLock::Create(param_tensor,
+                                     TensorBuffer::LockMode::kWrite));
+  std::memset(param_tensor_lock_and_addr.second, 0, packed_size);
+
+  // See parameter definition in ml_drift::LlmRuntimeParams.
+  // First 2 parameters are used by add_values_to_cache kernel.
+  // 3rd parameter is used by runtime_batched_matmul kernel to check the end
+  // channel index, which doesn't have to be aligned as the kernel does that.
+  int end_index = start_index + update_length;
+  int32_t params[] = {start_index, end_index, end_index};
+  LITERT_RETURN_IF_ERROR(sizeof(params) <= packed_size);
+  std::memcpy(param_tensor_lock_and_addr.second, params, sizeof(params));
   return absl::OkStatus();
 }
 

@@ -116,7 +116,7 @@ GetOptimizedPrefillWorkGroups(
 // is_f16 only applies to FLOAT mask data type.
 absl::Status InitializeAttentionMask(::litert::TensorBuffer& mask, bool is_f16);
 
-// Fill attention mask for a given range of timesteps.
+// Fills attention mask for a given range of timesteps.
 // The mask is a 4D tensor with shape [batch=1, seq_len, 1, max_kv_len].
 // mask - The attention mask tensor to be filled.
 // start_timestep - The starting timestep to be filled at seq = 1.
@@ -124,10 +124,12 @@ absl::Status InitializeAttentionMask(::litert::TensorBuffer& mask, bool is_f16);
 absl::Status FillAttentionMask(::litert::TensorBuffer& mask, int start_timestep,
                                int steps);
 
-absl::Status UploadInt32ParamTensorData(::litert::TensorBuffer& param_tensor,
-                                        int token_index_offset,
-                                        int active_tokens,
-                                        int active_tokens_aligned);
+// Fills the parameters used by single buffer cache update from
+// start_index to start_index + update_length.
+// Note that this parameter tensor is used by add_values_to_cache kernel and
+// runtime_batched_matmul kernel.
+absl::Status FillSingleBufferCacheParamTensor(
+    ::litert::TensorBuffer& param_tensor, int start_index, int update_length);
 
 // Builds the model resources from the model_path for compiled model only.
 // Supports .task and .litertlm formats.
