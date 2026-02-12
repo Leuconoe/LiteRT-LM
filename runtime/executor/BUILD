@@ -60,7 +60,9 @@ cc_library(
         "@com_google_absl//absl/status",
         "@com_google_absl//absl/status:statusor",
         "@com_google_absl//absl/strings",
+        "//runtime/util:file_util",
         "//runtime/util:litert_status_util",
+        "//runtime/util:scoped_file",
     ],
 )
 
@@ -673,6 +675,7 @@ cc_library(
         ":vision_executor",
         ":vision_executor_settings",
         "@com_google_absl//absl/base:nullability",
+        "@com_google_absl//absl/log:absl_log",
         "@com_google_absl//absl/memory",
         "@com_google_absl//absl/status",
         "@com_google_absl//absl/status:statusor",
@@ -683,6 +686,7 @@ cc_library(
         "//runtime/util:convert_tensor_buffer",
         "//runtime/util:file_util",
         "//runtime/util:litert_status_util",
+        "//runtime/util:scoped_file",
     ] + select({
         "@litert//litert:litert_link_capi_so": [
             "@litert//litert/cc:litert_api_with_dynamic_runtime",

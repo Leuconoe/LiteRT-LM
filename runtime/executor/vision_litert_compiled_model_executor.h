@@ -155,7 +155,8 @@ class VisionLiteRtCompiledModelExecutor : public VisionExecutor {
     //   A unique pointer to the VisionAdapter if successful, or an error status
     //   if failed.
     static absl::StatusOr<std::unique_ptr<VisionAdapter>> Create(
-        Environment& env, const Model* absl_nonnull model, Backend backend);
+        Environment& env, const Model* absl_nonnull model,
+        const VisionExecutorSettings& vision_executor_settings);
 
     // Initialize the VisionAdapter.
     absl::Status Initialize();
@@ -168,11 +169,18 @@ class VisionLiteRtCompiledModelExecutor : public VisionExecutor {
 
    private:
     VisionAdapter(Environment& env, const Model* absl_nonnull model,
-                  Backend backend)
-        : env_(env), backend_(backend), model_(*model) {}
+                  const VisionExecutorSettings& vision_executor_settings)
+        : env_(env),
+          vision_executor_settings_(vision_executor_settings),
+          model_(*model) {
+      backend_ = vision_executor_settings.GetAdapterBackend();
+    }
 
     // The LiteRT environment.
     Environment& env_;
+
+    // The VisionExecutorSettings for the vision adapter model.
+    const VisionExecutorSettings& vision_executor_settings_;
 
     // The backend to use for the vision adapter model.
     Backend backend_;
