@@ -67,6 +67,7 @@
 #include "runtime/util/scoped_file.h"
 #include "runtime/util/status_macros.h"  // IWYU pragma: keep
 #include "tflite/delegates/xnnpack/xnnpack_delegate.h"  // from @litert
+#include "tflite/types/half.h"  // from @litert
 
 namespace litert::lm {
 namespace {
@@ -1587,8 +1588,23 @@ absl::StatusOr<TensorBuffer> LlmLiteRtCompiledModelExecutorBase::DecodeLogits(
         // Write the masked logits back to the tensor buffer.
         output_logits.Write(
             absl::MakeConstSpan(logits_vector.data(), logits_vector.size()));
+      } else if (logits_tensor_type.ElementType() ==
+                 litert::ElementType::Float16) {
+        // Copy the logits from the tensor buffer to a vector.
+        LITERT_ASSIGN_OR_RETURN(
+            auto logits_vector,
+            CopyFromTensorBuffer<tflite::half>(output_logits));
+
+        // Mask logits based on the current constraint state.
+        RETURN_IF_ERROR(decode_params.GetConstraintDecoder()->MaskLogits(
+            absl::MakeSpan(logits_vector.data(), logits_vector.size()),
+            logits_tensor_type.Layout().Dimensions()));
+        // Write the masked logits back to the tensor buffer.
+        output_logits.Write(
+            absl::MakeConstSpan(logits_vector.data(), logits_vector.size()));
       } else {
-        return absl::InvalidArgumentError("Output logits are not in float32.");
+        return absl::InvalidArgumentError(
+            "Output logits are not in float32 or float16 type.");
       }
     }
   }

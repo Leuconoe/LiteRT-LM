@@ -25,6 +25,7 @@
 #include "litert/cc/litert_layout.h"  // from @litert
 #include "litert/cc/litert_tensor_buffer.h"  // from @litert
 #include "runtime/components/constrained_decoding/constraint.h"
+#include "tflite/types/half.h"  // from @litert
 
 namespace litert::lm {
 
@@ -88,6 +89,9 @@ class ConstrainedDecoder {
 
   // Same as above, but takes a span of logits instead of a tensor buffer.
   absl::Status MaskLogits(absl::Span<float> logits,
+                          absl::Span<const ::litert::Layout::Dim> logits_dims);
+
+  absl::Status MaskLogits(absl::Span<tflite::half> logits,
                           absl::Span<const ::litert::Layout::Dim> logits_dims);
 
  private:

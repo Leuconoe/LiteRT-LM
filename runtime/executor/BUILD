@@ -119,7 +119,9 @@ cc_library(
         "//runtime/components:model_resources_litert_lm",
         "//runtime/components:model_resources_task",
         "//runtime/components:sentencepiece_tokenizer",
+        "//runtime/components/constrained_decoding:constrained_decoder",
         "//runtime/proto:sampler_params_cc_proto",
+        "//runtime/util:convert_tensor_buffer",
         "//runtime/util:external_file_cc_proto",
         "//runtime/util:file_format_util",
         "//runtime/util:litert_lm_loader",
@@ -161,6 +163,8 @@ cc_test(
         "@litert//litert/cc:litert_tensor_buffer_types",
         "@litert//litert/test:matchers",
         "//runtime/components:model_resources",
+        "//runtime/components/constrained_decoding:bitmap",
+        "//runtime/components/constrained_decoding:constrained_decoder",
         "//runtime/util:memory_mapped_file",
         "//runtime/util:scoped_file",
         "//runtime/util:test_utils",
@@ -261,6 +265,7 @@ cc_library(
         "//runtime/util:lora_util",
         "//runtime/util:scoped_file",
         "@litert//tflite/delegates/xnnpack:xnnpack_delegate",
+        "@litert//tflite/types:half",
     ] + select({
         "@litert//litert:litert_link_capi_so": [
             "@litert//litert/cc:litert_api_with_dynamic_runtime",

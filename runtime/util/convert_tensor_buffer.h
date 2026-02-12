@@ -31,6 +31,7 @@
 #include "litert/cc/litert_ranked_tensor_type.h"  // from @litert
 #include "litert/cc/litert_tensor_buffer.h"  // from @litert
 #include "litert/cc/litert_tensor_buffer_types.h"  // from @litert
+#include "tflite/types/half.h"  // from @litert
 
 namespace litert::lm {
 
@@ -65,6 +66,11 @@ struct ElementTypeFor<int32_t> {
 template <>
 struct ElementTypeFor<float> {
   static constexpr ::litert::ElementType kType = ::litert::ElementType::Float32;
+};
+
+template <>
+struct ElementTypeFor<tflite::half> {
+  static constexpr ::litert::ElementType kType = ::litert::ElementType::Float16;
 };
 
 template <typename T>
