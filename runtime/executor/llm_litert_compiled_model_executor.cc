@@ -1624,7 +1624,9 @@ LlmLiteRtCompiledModelExecutorStatic::Create(
         gpu_compilation_options.AddExternalTensorPattern("kv_cache_");
         if (signatures.input_int32_param.has_value()) {
           gpu_optimized_single_buffer_cache = true;
+          gpu_compilation_options.AddBufferStorageTensorPattern("kv_cache_");
           gpu_compilation_options.AddExternalTensorPattern("param_tensor");
+          gpu_compilation_options.AddBufferStorageTensorPattern("param_tensor");
         }
         ASSIGN_OR_RETURN(auto sampler_backend,
                          GetSamplerBackend(executor_settings));
