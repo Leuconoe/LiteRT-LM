@@ -21,6 +21,8 @@
 #include <utility>
 #include <vector>
 
+#include "absl/log/absl_log.h"  // from @com_google_absl
+#include "absl/status/status.h"  // from @com_google_absl
 #include "absl/status/statusor.h"  // from @com_google_absl
 #include "absl/strings/string_view.h"  // from @com_google_absl
 #include "nlohmann/json.hpp"  // from @nlohmann_json
@@ -91,6 +93,14 @@ class FunctionGemmaDataProcessor
   absl::StatusOr<Message> ToMessageImpl(
       const Responses& responses,
       const FunctionGemmaDataProcessorArguments& args) const override;
+
+  absl::Status CloneStateImpl(
+      const TypeSafeModelDataProcessor<FunctionGemmaDataProcessorConfig,
+                                       FunctionGemmaDataProcessorArguments>&
+          other) override {
+    ABSL_LOG(INFO) << "FunctionGemmaDataProcessor::CloneStateImpl is a no-op.";
+    return absl::OkStatus();
+  }
 
   std::unique_ptr<LiteRtLmGemmaModelConstraintProvider,
                   decltype(&LiteRtLmGemmaModelConstraintProvider_Destroy)>

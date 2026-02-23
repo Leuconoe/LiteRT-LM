@@ -162,7 +162,9 @@ cc_library(
     deps = [
         ":generic_data_processor_config",
         ":model_data_processor",
+        "@com_google_absl//absl/log:absl_log",
         "@com_google_absl//absl/memory",
+        "@com_google_absl//absl/status",
         "@com_google_absl//absl/status:statusor",
         "@com_google_absl//absl/strings:string_view",
         "@nlohmann_json//:json",
@@ -195,7 +197,9 @@ cc_library(
     deps = [
         ":model_data_processor",
         ":qwen3_data_processor_config",
+        "@com_google_absl//absl/log:absl_log",
         "@com_google_absl//absl/memory",
+        "@com_google_absl//absl/status",
         "@com_google_absl//absl/status:statusor",
         "@com_google_absl//absl/strings:string_view",
         "@nlohmann_json//:json",
@@ -293,6 +297,7 @@ cc_library(
     deps = [
         ":function_gemma_data_processor_config",
         ":model_data_processor",
+        "@com_google_absl//absl/log:absl_log",
         "@com_google_absl//absl/memory",
         "@com_google_absl//absl/status",
         "@com_google_absl//absl/status:statusor",

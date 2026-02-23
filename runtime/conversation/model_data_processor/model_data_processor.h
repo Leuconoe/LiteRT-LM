@@ -113,9 +113,7 @@ class ModelDataProcessor {
   virtual absl::string_view CodeFenceEnd() const = 0;
 
   // Clones the state of the other model data processor.
-  virtual absl::Status CloneState(const ModelDataProcessor& other) {
-    return absl::UnimplementedError("CloneState is not implemented.");
-  }
+  virtual absl::Status CloneState(const ModelDataProcessor& other) = 0;
 };
 
 // TypeSafeModelDataProcessor is a ModelDataProcessor that expects a specific
@@ -162,9 +160,15 @@ class TypeSafeModelDataProcessor : public ModelDataProcessor {
   virtual const ExpectedConfigT& GetConfig() const = 0;
 
   // Clones the state of the other model data processor.
-  absl::Status CloneState(
-      const TypeSafeModelDataProcessor<ExpectedConfigT, ExpectedArgsT>& other) {
-    return this->CloneStateImpl(other);
+  absl::Status CloneState(const ModelDataProcessor& other) final {
+    const auto* typed_other = dynamic_cast<
+        const TypeSafeModelDataProcessor<ExpectedConfigT, ExpectedArgsT>*>(
+        &other);
+    if (typed_other == nullptr) {
+      return absl::InvalidArgumentError(
+          "The other ModelDataProcessor is not of the expected type.");
+    }
+    return this->CloneStateImpl(*typed_other);
   }
 
  private:
@@ -177,9 +181,8 @@ class TypeSafeModelDataProcessor : public ModelDataProcessor {
       const Responses& responses, const ExpectedArgsT& typed_args) const = 0;
 
   virtual absl::Status CloneStateImpl(
-      const TypeSafeModelDataProcessor<ExpectedConfigT, ExpectedArgsT>& other) {
-    return absl::UnimplementedError("CloneStateImpl is not implemented.");
-  }
+      const TypeSafeModelDataProcessor<ExpectedConfigT, ExpectedArgsT>&
+          other) = 0;
 };
 
 }  // namespace litert::lm
