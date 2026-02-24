@@ -147,6 +147,7 @@ cc_library(
         "//runtime/executor:llm_executor_settings",
         "//runtime/proto:sampler_params_cc_proto",
         "//runtime/util:litert_status_util",
+        "//runtime/util:scoped_file",
         "@com_googlesource_code_re2//:re2",
         "@stb//:stb_image",
         "@litert//tflite/profiling:memory_info",
@@ -257,6 +258,7 @@ cc_binary(
         "@com_google_absl//absl/status:statusor",
         "@com_google_absl//absl/strings",
         "@com_google_absl//absl/strings:string_view",
+        "//runtime/executor:executor_settings_base",
         "//runtime/util:litert_status_util",
     ] + select({
         "@platforms//os:windows": [

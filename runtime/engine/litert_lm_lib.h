@@ -66,6 +66,7 @@ struct LiteRtLmSettings {
   std::optional<std::string> audio_backend = std::nullopt;
   std::string sampler_backend = "";
   std::string model_path;
+  bool load_model_from_descriptor = false;
   std::string input_prompt = "What is the tallest building in the world?";
   std::optional<std::string> expected_output = std::nullopt;
   std::optional<std::string> log_sink_file = std::nullopt;

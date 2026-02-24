@@ -56,6 +56,7 @@
 #include "runtime/executor/executor_settings_base.h"
 #include "runtime/executor/llm_executor_settings.h"
 #include "runtime/proto/sampler_params.pb.h"
+#include "runtime/util/scoped_file.h"
 #include "runtime/util/status_macros.h"  // IWYU pragma: keep
 #include "re2/re2.h"  // from @com_googlesource_code_re2
 #include "tflite/profiling/memory_info.h"  // from @litert
@@ -64,6 +65,7 @@
 namespace litert {
 namespace lm {
 
+using ::litert::ScopedFile;
 using ::litert::lm::Backend;
 using ::litert::lm::Engine;
 using ::litert::lm::EngineSettings;
@@ -81,6 +83,21 @@ constexpr int kMemoryCheckIntervalMs = 50;
 const absl::Duration kWaitUntilDoneTimeout = absl::Minutes(10);
 
 namespace {
+// Creates the ModelAssets from the LiteRtLmSettings.
+absl::StatusOr<ModelAssets> CreateModelAssets(
+    const LiteRtLmSettings& settings) {
+  if (settings.model_path.empty()) {
+    return absl::InvalidArgumentError("Model path is empty.");
+  }
+  ABSL_LOG(INFO) << "Model path: " << settings.model_path;
+  if (!settings.load_model_from_descriptor) {
+    return ModelAssets::Create(settings.model_path);
+  }
+  ASSIGN_OR_RETURN(auto scoped_file, ScopedFile::Open(settings.model_path));
+  return ModelAssets::Create(
+      std::make_shared<ScopedFile>(std::move(scoped_file)));
+}
+
 // Helper to process the sampler backend string and return a sampler backend
 // if possible. Otherwise, return std::nullopt.
 std::optional<Backend> GetSamplerBackend(const LiteRtLmSettings& settings) {
@@ -101,13 +118,7 @@ std::optional<Backend> GetSamplerBackend(const LiteRtLmSettings& settings) {
 // Creates the EngineSettings from the LiteRtLmSettings.
 absl::StatusOr<EngineSettings> CreateEngineSettings(
     const LiteRtLmSettings& settings) {
-  const std::string model_path = settings.model_path;
-  if (model_path.empty()) {
-    return absl::InvalidArgumentError("Model path is empty.");
-  }
-  ABSL_LOG(INFO) << "Model path: " << model_path;
-  ASSIGN_OR_RETURN(ModelAssets model_assets,  // NOLINT
-                   ModelAssets::Create(model_path));
+  ASSIGN_OR_RETURN(ModelAssets model_assets, CreateModelAssets(settings));
   auto backend_str = settings.backend;
   ABSL_LOG(INFO) << "Choose backend: " << backend_str;
   ASSIGN_OR_RETURN(Backend backend,
