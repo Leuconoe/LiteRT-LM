@@ -1710,10 +1710,9 @@ LlmLiteRtCompiledModelExecutorStatic::Create(
       } else {
         ABSL_LOG(WARNING) << "Can't use cache: " << weight_cache_file.status();
       }
-      LITERT_ASSIGN_OR_RETURN(const uint32_t default_xnnpack_flags,
-                              cpu_compilation_options.GetXNNPackFlags());
+      auto default_xnn_options = TfLiteXNNPackDelegateOptionsDefault();
       cpu_compilation_options.SetXNNPackFlags(
-          default_xnnpack_flags |
+          default_xnn_options.flags |
           TFLITE_XNNPACK_DELEGATE_FLAG_ENABLE_LATEST_OPERATORS);
       LITERT_ASSIGN_OR_RETURN(auto& runtime_options,
                               compilation_options.GetRuntimeOptions());
@@ -2128,10 +2127,9 @@ LlmLiteRtCompiledModelExecutorDynamic::Create(
     }
     RET_CHECK_GT(kv_increament_size, 0)
         << "KV increment size must be greater than 0.";
-    LITERT_ASSIGN_OR_RETURN(const uint32_t default_xnnpack_flags,
-                            cpu_compilation_options.GetXNNPackFlags());
+    auto default_xnn_options = TfLiteXNNPackDelegateOptionsDefault();
     cpu_compilation_options.SetXNNPackFlags(
-        default_xnnpack_flags |
+        default_xnn_options.flags |
         TFLITE_XNNPACK_DELEGATE_FLAG_ENABLE_LATEST_OPERATORS);
     LITERT_ASSIGN_OR_RETURN(auto& runtime_options,
                             compilation_options.GetRuntimeOptions());
