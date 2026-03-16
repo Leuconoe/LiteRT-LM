@@ -352,7 +352,7 @@ NB_MODULE(litert_lm_ext, module) {
         return py_engine;
       },
       nb::arg("model_path"), nb::arg("backend") = nb::none(),
-      nb::arg("max_num_tokens") = 512, nb::arg("cache_dir") = "",
+      nb::arg("max_num_tokens") = 4096, nb::arg("cache_dir") = "",
       nb::arg("vision_backend") = nb::none(),
       nb::arg("audio_backend") = nb::none(),
       nb::arg("input_prompt_as_hint") = "");

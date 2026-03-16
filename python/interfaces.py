@@ -33,7 +33,7 @@ class Backend(enum.Enum):
   NPU = 6
 
 
-@dataclasses.dataclass
+@dataclasses.dataclass(kw_only=True)
 class AbstractEngine(abc.ABC):
   """Abstract base class for LiteRT-LM engines.
 
@@ -46,7 +46,7 @@ class AbstractEngine(abc.ABC):
 
   model_path: str
   backend: Backend
-  max_num_tokens: int = 512
+  max_num_tokens: int = 4096
   cache_dir: str = ""
 
   def __enter__(self) -> AbstractEngine:
@@ -145,7 +145,6 @@ class AbstractConversation(abc.ABC):
 
   def cancel_process(self) -> None:
     """Cancels the current inference process."""
-    pass
 
 
 @dataclasses.dataclass
