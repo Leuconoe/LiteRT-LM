@@ -541,3 +541,32 @@ cc_test(
         "//runtime/util:test_utils",
     ],
 )
+
+cc_library(
+    name = "metrics_util",
+    srcs = ["metrics_util.cc"],
+    hdrs = ["metrics_util.h"],
+    deps = [
+        ":litert_status_util",
+        "@com_google_absl//absl/status:statusor",
+        "@com_google_absl//absl/time",
+        "//runtime/engine:io_types",
+        "//runtime/engine:litert_lm_lib",
+        "//runtime/proto:litert_lm_metrics_cc_proto",
+    ],
+)
+
+cc_test(
+    name = "metrics_util_test",
+    srcs = ["metrics_util_test.cc"],
+    deps = [
+        ":metrics_util",
+        ":test_utils",
+        "@com_google_googletest//:gtest_main",
+        "@com_google_absl//absl/time",
+        "//runtime/engine:io_types",
+        "//runtime/engine:litert_lm_lib",
+        "//runtime/proto:engine_cc_proto",
+        "//runtime/proto:litert_lm_metrics_cc_proto",
+    ],
+)
