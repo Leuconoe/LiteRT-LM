@@ -270,6 +270,7 @@ cc_library(
         "//runtime/components/embedding_lookup:embedding_lookup_manager",
         "//runtime/util:convert_tensor_buffer",
         "//runtime/util:litert_status_util",
+        "//runtime/util:log_tensor_buffer",
         "//runtime/util:lora_util",
         "//runtime/util:scoped_file",
         "@litert//tflite/delegates/xnnpack:xnnpack_delegate",

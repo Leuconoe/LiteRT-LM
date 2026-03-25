@@ -66,6 +66,47 @@ cc_test(
 )
 
 cc_library(
+    name = "log_tensor_buffer",
+    srcs = ["log_tensor_buffer.cc"],
+    hdrs = ["log_tensor_buffer.h"],
+    deps = [
+        ":convert_tensor_buffer",
+        "@com_google_absl//absl/log:absl_check",
+        "@com_google_absl//absl/log:absl_log",
+        "@com_google_absl//absl/status",
+        "@com_google_absl//absl/strings",
+        "@com_google_absl//absl/strings:string_view",
+        "@com_google_absl//absl/types:span",
+        "@litert//tflite/types:half",
+    ] + select({
+        "@litert//litert:litert_link_capi_so": [
+            "@litert//litert/cc:litert_api_with_dynamic_runtime",
+        ],
+        "//conditions:default": [
+            "@litert//litert/cc:litert_element_type",
+            "@litert//litert/cc:litert_expected",
+            "@litert//litert/cc:litert_macros",
+            "@litert//litert/cc:litert_tensor_buffer",
+        ],
+    }),
+)
+
+cc_test(
+    name = "log_tensor_buffer_test",
+    srcs = ["log_tensor_buffer_test.cc"],
+    deps = [
+        ":log_tensor_buffer",
+        ":test_utils",
+        "@com_google_googletest//:gtest_main",
+        "@litert//litert/cc:litert_element_type",
+        "@litert//litert/cc:litert_layout",
+        "@litert//litert/cc:litert_ranked_tensor_type",
+        "@litert//litert/cc:litert_tensor_buffer",
+        "@litert//litert/cc:litert_tensor_buffer_types",
+    ],
+)
+
+cc_library(
     name = "executor_data_util",
     srcs = ["executor_data_util.cc"],
     hdrs = ["executor_data_util.h"],

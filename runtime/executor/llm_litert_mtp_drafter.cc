@@ -39,6 +39,11 @@ namespace litert::lm {
 
 namespace {
 
+constexpr bool kEnableMtpDrafterLogs = false;
+
+#define MTP_DRAFTER_LOG() \
+  ABSL_LOG_IF(INFO, kEnableMtpDrafterLogs) << "MTP Drafter - "
+
 constexpr absl::string_view kVerifySignatureRunner = "verify";
 
 absl::StatusOr<std::unique_ptr<Sampler>> CreateGreedySampler(Environment& env,
@@ -108,45 +113,17 @@ absl::Status ConcatenateEmbeddingsAndActivationsFromVerifierBuffer(
   return absl::OkStatus();
 }
 
-void LogValues(absl::Span<const float> values, size_t num_values_to_log,
-               absl::string_view debug) {
-  constexpr size_t kNumExtraValuesToLog = 10;
-  if (num_values_to_log * 3 + kNumExtraValuesToLog >= values.size()) {
-    ABSL_LOG(INFO) << debug << "(size=" << values.size()
-                   << "): " << absl::StrJoin(values, ", ");
-    return;
-  }
-
-  size_t end_offset = values.size() - num_values_to_log;
-  size_t mid_offset = end_offset / 2;
-  ABSL_LOG(INFO) << debug << "(size=" << values.size() << "): "
-                 << absl::StrJoin(values.subspan(0, num_values_to_log), ", ")
-                 << " ... "
-                 << absl::StrJoin(values.subspan(mid_offset, num_values_to_log),
-                                  ", ")
-                 << " ... " << absl::StrJoin(values.subspan(end_offset), ",");
-}
-
-void LogTensor(TensorBuffer& tensor, size_t num_values_to_log,
-               absl::string_view debug) {
-  // Try to get the reference if tensor is in CPU memory.
-  auto values_span = ReferTensorBufferAsSpan<float>(tensor);
-  if (values_span) {
-    LogValues(*values_span, num_values_to_log, debug);
-    return;
-  }
-
-  // Otherwise, copy the logits from the tensor buffer to a vector.
-  auto values_vector = CopyFromTensorBuffer<float>(tensor);
-  if (values_vector) {
-    LogValues(*values_vector, num_values_to_log, debug);
-    return;
-  }
-
-  ABSL_LOG(ERROR) << debug << ": Failed to log logits.";
-}
-
 }  // namespace
+
+LlmLiteRtMtpDrafter::~LlmLiteRtMtpDrafter() {
+  ABSL_LOG(INFO) << "Num drafted tokens: " << num_drafted_tokens_;
+  ABSL_LOG(INFO) << "Num verified tokens: " << num_verified_tokens_;
+  if (num_drafted_tokens_ > 0) {
+    ABSL_LOG(INFO) << "Success rate: "
+                   << static_cast<double>(num_verified_tokens_) /
+                          num_drafted_tokens_;
+  }
+}
 
 absl::StatusOr<std::unique_ptr<LlmLiteRtMtpDrafter>>
 LlmLiteRtMtpDrafter::Create(Environment& env, ModelResources& resources,
@@ -249,12 +226,6 @@ absl::StatusOr<std::vector<std::vector<int>>> LlmLiteRtMtpDrafter::Draft(
         input_kv_cache_buffers,
     absl::flat_hash_map<absl::string_view, TensorBuffer>&
         output_kv_cache_buffers) {
-  ABSL_LOG(INFO) << "MTP Drafter - position: " << position;
-  ABSL_LOG(INFO) << "MTP Drafter - token_id: " << token_id;
-  if (activations.has_value()) {
-    LogTensor(activations.value(), 10, "MTP Drafter - activations");
-  }
-
   absl::flat_hash_map<absl::string_view, TensorBuffer>
       mtp_drafter_input_buffers;
   for (const auto& [input_name, input_buffer] : drafter_input_buffers_) {
@@ -405,18 +376,20 @@ absl::StatusOr<std::vector<std::vector<int>>> LlmLiteRtMtpDrafter::Draft(
     bonus_token = verifier_id_vector[num_draft_steps_];
   }
 
-  ABSL_LOG(INFO) << "MTP Drafter - drafted_tokens: "
-                 << absl::StrJoin(drafted_tokens, ", ");
-  ABSL_LOG(INFO) << "MTP Drafter - bonus_token: " << bonus_token;
+  MTP_DRAFTER_LOG() << "drafted_tokens: "
+                    << absl::StrJoin(drafted_tokens, ", ");
+  MTP_DRAFTER_LOG() << "bonus_token: " << bonus_token;
+  MTP_DRAFTER_LOG() << "num_correct_tokens: " << num_correct_tokens;
 
   // The first token comes from the decode output and is always correct.
   drafted_tokens.resize(num_correct_tokens);
   drafted_tokens.push_back(bonus_token);
+  num_drafted_tokens_ += num_draft_steps_;
+  num_verified_tokens_ += num_correct_tokens;
 
-  ABSL_LOG(INFO) << "MTP Drafter - num_correct_tokens: " << num_correct_tokens;
-  ABSL_LOG(INFO) << "MTP Drafter - drafeter output: "
-                 << absl::StrJoin(drafted_tokens, ", ");
-  ABSL_LOG(INFO) << "--------------------------------------------------";
+  MTP_DRAFTER_LOG() << "drafter output: "
+                    << absl::StrJoin(drafted_tokens, ", ");
+  MTP_DRAFTER_LOG() << "--------------------------------------------------";
 
   return std::vector<std::vector<int>>{std::move(drafted_tokens)};
 }

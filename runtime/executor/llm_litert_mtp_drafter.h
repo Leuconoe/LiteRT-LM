@@ -38,6 +38,8 @@ namespace litert::lm {
 
 class LlmLiteRtMtpDrafter {
  public:
+  ~LlmLiteRtMtpDrafter();
+
   // Create an instance of LlmLiteRtMtpDrafter.
   // The executor_settings is used to create the MTP drafter model and its
   // sampler.
@@ -143,6 +145,14 @@ class LlmLiteRtMtpDrafter {
 
   // The index of the last verified token in the verifier output buffers.
   int last_verified_token_id_idx_ = -1;
+
+  // Misc statistics for the MTP drafter.
+  // The number of tokens drafted by the MTP drafter model, regardless of
+  // whether they are verified or not - does not include the bonus token.
+  int num_drafted_tokens_ = 0;
+  // The number of tokens verified by the base model (i.e., accepted) - does not
+  // include the bonus token.
+  int num_verified_tokens_ = 0;
 };
 
 }  // namespace litert::lm

@@ -167,8 +167,9 @@ absl::StatusOr<litert::Options> CreateCompilationOptions(
       }
 
       // Use NoExternalTensorsMode to get better performance.
-      bool external_tensor_mode =
-          executor_settings.GetBackendConfig<GpuConfig>()->external_tensor_mode;
+      ASSIGN_OR_RETURN(const GpuConfig gpu_config,
+                       executor_settings.GetBackendConfig<GpuConfig>());
+      bool external_tensor_mode = gpu_config.external_tensor_mode;
       gpu_compilation_options.EnableExternalTensorsMode(external_tensor_mode);
       if (!external_tensor_mode) {
         // This option prevents KVCache handling from being affected by
@@ -242,8 +243,9 @@ absl::StatusOr<litert::Options> CreateCompilationOptions(
     case Backend::CPU: {
       LITERT_ASSIGN_OR_RETURN(auto& cpu_compilation_options,
                               compilation_options.GetCpuOptions());
-      const uint32_t num_threads =
-          executor_settings.GetBackendConfig<CpuConfig>()->number_of_threads;
+      ASSIGN_OR_RETURN(const CpuConfig cpu_config,
+                       executor_settings.GetBackendConfig<CpuConfig>());
+      const uint32_t num_threads = cpu_config.number_of_threads;
       cpu_compilation_options.SetNumThreads(num_threads);
       auto weight_cache_file = executor_settings.GetWeightCacheFile(
           cache_suffix.value_or("") + ".xnnpack_cache");
