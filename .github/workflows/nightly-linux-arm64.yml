@@ -28,6 +28,8 @@ jobs:
             --@rules_python//python/config_settings:python_version=${PYTHON_VERSION} \
             --define=PYPI_NIGHTLY=1 \
             --define=PYPI_NIGHTLY_DATE=${DATE} \
+            --define=litert_link_capi_so=true \
+            --define=resolve_symbols_in_exec=false \
             --config=linux_arm64 \
             -c opt //python/litert_lm:litert_lm_wheel
 

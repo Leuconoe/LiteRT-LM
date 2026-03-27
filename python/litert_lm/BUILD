@@ -156,6 +156,8 @@ genrule(
         if [ $${#SRCS_ARRAY[@]} -gt 0 ]; then
             for i in $${!SRCS_ARRAY[@]}; do
                 cp $${SRCS_ARRAY[$$i]} $${OUTS_ARRAY[$$i]}
+                # Set the rpath to '$$ORIGIN'
+                patchelf --set-rpath '$$ORIGIN' $${OUTS_ARRAY[$$i]}
             done
         else
             for out in $${OUTS_ARRAY[@]}; do
