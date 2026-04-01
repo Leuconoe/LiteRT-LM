@@ -236,6 +236,19 @@ class EngineTest(LiteRtLmTestBase):
       self.assertLen(scoring_responses.scores, 1)
       self.assertEmpty(scoring_responses.token_lengths)
 
+  def test_session_api_run_decode_async(self):
+    with (
+        self._create_engine() as engine,
+        engine.create_session() as session,
+    ):
+      self.assertIsInstance(session, litert_lm.AbstractSession)
+      session.run_prefill(["Hello", " world!"])
+      stream = session.run_decode_async()
+      responses = list(stream)
+      self.assertNotEmpty(responses)
+      full_text = "".join(["".join(r.texts) for r in responses])
+      self.assertEqual(full_text, self._EXPECTED_RESPONSE)
+
 
 class FunctionCallingTest(LiteRtLmTestBase):
 

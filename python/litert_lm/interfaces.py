@@ -319,6 +319,14 @@ class AbstractSession(abc.ABC):
     """
 
   @abc.abstractmethod
+  def run_decode_async(self) -> collections.abc.Iterator[Responses]:
+    """Runs the decode stage of the session asynchronously.
+
+    Returns:
+        An iterator yielding chunks of the generated response (Responses).
+    """
+
+  @abc.abstractmethod
   def run_text_scoring(
       self, target_text: list[str], store_token_lengths: bool = False
   ) -> Responses:

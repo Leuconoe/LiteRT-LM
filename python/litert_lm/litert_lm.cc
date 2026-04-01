@@ -34,6 +34,7 @@
 #include "nanobind/stl/vector.h"       // IWYU pragma: keep
 #include "absl/base/log_severity.h"  // from @com_google_absl
 #include "absl/base/thread_annotations.h"  // from @com_google_absl
+#include "absl/functional/any_invocable.h"  // from @com_google_absl
 #include "absl/log/globals.h"  // from @com_google_absl
 #include "absl/status/status.h"  // from @com_google_absl
 #include "absl/status/statusor.h"  // from @com_google_absl
@@ -217,7 +218,7 @@ class MessageIterator {
   MessageIterator& operator=(const MessageIterator&) = delete;
 
   void Push(absl::StatusOr<Message> message) {
-    absl::MutexLock lock(&mutex_);
+    absl::MutexLock lock(mutex_);
     queue_.push_back(std::move(message));
   }
 
@@ -225,7 +226,7 @@ class MessageIterator {
     absl::StatusOr<Message> message;
     {
       nb::gil_scoped_release release;
-      absl::MutexLock lock(&mutex_);
+      absl::MutexLock lock(mutex_);
       mutex_.Await(absl::Condition(this, &MessageIterator::HasData));
       message = std::move(queue_.front());
       queue_.pop_front();
@@ -258,6 +259,62 @@ class MessageIterator {
  private:
   absl::Mutex mutex_;
   std::deque<absl::StatusOr<Message>> queue_ ABSL_GUARDED_BY(mutex_);
+};
+
+// ResponsesIterator bridges the asynchronous, callback-based C++ API
+// (Engine::Session::RunDecodeAsync) to Python's synchronous iterator protocol
+// (__iter__ / __next__).
+class ResponsesIterator {
+ public:
+  ResponsesIterator() = default;
+
+  ResponsesIterator(const ResponsesIterator&) = delete;
+  ResponsesIterator& operator=(const ResponsesIterator&) = delete;
+
+  void Push(absl::StatusOr<Responses> responses) {
+    absl::MutexLock lock(mutex_);
+    queue_.push_back(std::move(responses));
+  }
+
+  void SetTaskController(
+      std::unique_ptr<Engine::Session::TaskController> controller) {
+    absl::MutexLock lock(mutex_);
+    controller_ = std::move(controller);
+  }
+
+  nb::object Next() {
+    absl::StatusOr<Responses> responses;
+    {
+      nb::gil_scoped_release release;
+      absl::MutexLock lock(mutex_);
+      mutex_.Await(absl::Condition(this, &ResponsesIterator::HasData));
+      responses = std::move(queue_.front());
+      queue_.pop_front();
+    }
+
+    if (!responses.ok()) {
+      if (absl::IsCancelled(responses.status())) {
+        throw nb::stop_iteration();
+      }
+      throw std::runtime_error(responses.status().ToString());
+    }
+
+    if (responses->GetTexts().empty()) {
+      throw nb::stop_iteration();
+    }
+
+    return ToPyResponses(*responses);
+  }
+
+  bool HasData() const ABSL_EXCLUSIVE_LOCKS_REQUIRED(mutex_) {
+    return !queue_.empty();
+  }
+
+ private:
+  absl::Mutex mutex_;
+  std::deque<absl::StatusOr<Responses>> queue_ ABSL_GUARDED_BY(mutex_);
+  std::unique_ptr<Engine::Session::TaskController> controller_
+      ABSL_GUARDED_BY(mutex_);
 };
 
 struct PyBenchmarkInfo {
@@ -636,6 +693,20 @@ NB_MODULE(litert_lm_ext, module) {
           "based on the input prompt/query added after using run_prefill "
           "function.")
       .def(
+          "run_decode_async",
+          [](Engine::Session& self) {
+            auto iterator = std::make_shared<ResponsesIterator>();
+            absl::AnyInvocable<void(absl::StatusOr<Responses>)> callback =
+                [iterator](absl::StatusOr<Responses> responses) {
+                  iterator->Push(std::move(responses));
+                };
+            auto task_controller_or = self.RunDecodeAsync(std::move(callback));
+            STATUS_OR_THROW(task_controller_or.status());
+            iterator->SetTaskController(std::move(*task_controller_or));
+            return iterator;
+          },
+          "Starts the decoding process asynchronously.")
+      .def(
           "run_text_scoring",
           [](Engine::Session& self, const std::vector<std::string>& target_text,
              bool store_token_lengths) {
@@ -802,6 +873,10 @@ NB_MODULE(litert_lm_ext, module) {
   nb::class_<MessageIterator>(module, "MessageIterator")
       .def("__iter__", [](nb::handle self) { return self; })
       .def("__next__", &MessageIterator::Next);
+
+  nb::class_<ResponsesIterator>(module, "ResponsesIterator")
+      .def("__iter__", [](nb::handle self) { return self; })
+      .def("__next__", &ResponsesIterator::Next);
 
   module.def(
       "Benchmark",
