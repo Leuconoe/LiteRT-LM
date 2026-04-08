@@ -40,6 +40,7 @@
 #include "absl/log/log_sink_registry.h"  // from @com_google_absl
 #include "absl/status/status.h"  // from @com_google_absl
 #include "absl/status/statusor.h"  // from @com_google_absl
+#include "absl/strings/escaping.h"  // from @com_google_absl
 #include "absl/strings/match.h"  // from @com_google_absl
 #include "absl/strings/str_cat.h"  // from @com_google_absl
 #include "absl/strings/str_format.h"  // from @com_google_absl
@@ -368,64 +369,6 @@ void CheckExpectedOutput(const std::string& captured_output,
   }
 }
 
-absl::Status BuildContentList(absl::string_view prompt_view, json& content_list,
-                              const LiteRtLmSettings& settings) {
-  int last_pos = 0;
-  std::string media_type;
-  std::string media_path;
-  // We expect the media path to be in the format of [image:/path/to/image.jpg]
-  // or [audio:/path/to/audio.wav]
-  //
-  // So the prompt can be like:
-  // 1. Briefly describe the two images [image:/path/to/image1.jpg] and
-  // [image:/path/to/image2.jpg]
-  //
-  // 2. Transcribe the audio [audio:/path/to/audio.wav]
-  //
-  // 3. First transcribe the [audio:/path/to/audio.wav] then describe the
-  // content in the [image:/path/to/image.jpg]
-  RE2 re_media("\\[(image|audio):([^\\s\\]]+)\\]");  // Regex to find image
-                                                     // or audio paths
-  constexpr int kBracketShift = 3;  // account for [] in the string
-  absl::string_view whole_prompt(prompt_view);
-  while (
-      RE2::FindAndConsume(&prompt_view, re_media, &media_type, &media_path)) {
-    if (!std::filesystem::exists(media_path)) {
-      return absl::NotFoundError(
-          absl::StrCat("[ERROR] Media path ", media_path, " does not exist."));
-    }
-    // Calculate the position of the match in the original string
-    const int media_string_size =
-        media_type.size() + media_path.size() + kBracketShift;
-    int match_pos =
-        whole_prompt.size() - prompt_view.size() - media_string_size;
-    // Add text part before the media path
-    if (match_pos > last_pos) {
-      content_list.push_back(
-          {{"type", "text"},
-           {"text", whole_prompt.substr(last_pos, match_pos - last_pos)}});
-    }
-    if (media_type == "image" && !settings.vision_backend.has_value()) {
-      return absl::InvalidArgumentError(
-          "Image backend is not specified. Please specify the vision backend "
-          "with --vision_backend=<cpu|gpu>");
-    }
-    if (media_type == "audio" && !settings.audio_backend.has_value()) {
-      return absl::InvalidArgumentError(
-          "Audio backend is not specified. Please specify the audio backend "
-          "with --audio_backend=<cpu|gpu>");
-    }
-    // Add media part
-    content_list.push_back({{"type", media_type}, {"path", media_path}});
-    last_pos = match_pos + media_string_size;
-  }
-  // Add any remaining text part
-  if (!prompt_view.empty()) {
-    content_list.push_back({{"type", "text"}, {"text", prompt_view}});
-  }
-
-  return absl::OkStatus();
-}
 
 absl::StatusOr<std::unique_ptr<Constraint>> CreateRegexConstraint(
     const Tokenizer& tokenizer,
@@ -444,7 +387,9 @@ absl::Status RunSingleTurnConversation(const std::string& input_prompt,
                                        litert::lm::Engine* engine,
                                        Conversation* conversation) {
   json content_list = json::array();
-  RETURN_IF_ERROR(BuildContentList(input_prompt, content_list, settings));
+  std::vector<InputData> input_data;
+  input_data.push_back(InputText(input_prompt));
+  RETURN_IF_ERROR(BuildContentList(input_data, settings, content_list));
   std::stringstream captured_output;
   OptionalArgs optional_args;
   if (settings.max_output_tokens > 0) {
@@ -484,7 +429,9 @@ absl::Status RunMultiTurnConversation(const LiteRtLmSettings& settings,
 
     // If there is an error building the content list, skip the prompt and
     // continue.
-    auto status = BuildContentList(input_prompt, content_list, settings);
+    std::vector<InputData> input_data;
+    input_data.push_back(InputText(input_prompt));
+    auto status = BuildContentList(input_data, settings, content_list);
     if (!status.ok()) {
       std::cout << status.message() << std::endl;
       continue;
@@ -660,6 +607,82 @@ void LogMemoryUsage(const LiteRtLmSettings& settings, float peak_mem_mb,
 }
 
 }  // namespace
+
+// TODO(b/453071109): Check if returning the content list is more appropriate.
+absl::Status BuildContentList(const std::vector<InputData>& input_data,
+                              const LiteRtLmSettings& settings,
+                              nlohmann::json& content_list) {
+  // We expect the media path to be in the format of [image:/path/to/image.jpg]
+  // or [audio:/path/to/audio.wav]
+  //
+  // So the prompt can be like:
+  // 1. Briefly describe the two images [image:/path/to/image1.jpg] and
+  // [image:/path/to/image2.jpg]
+  //
+  // 2. Transcribe the audio [audio:/path/to/audio.wav]
+  //
+  // 3. First transcribe the [audio:/path/to/audio.wav] then describe the
+  // content in the [image:/path/to/image.jpg]
+  RE2 re_media("\\[(image|audio):([^\\s\\]]+)\\]");  // Regex to find image
+                                                     // or audio paths
+  constexpr int kBracketShift = 3;  // account for [] in the string
+
+  for (const auto& data : input_data) {
+    if (const auto* text = std::get_if<InputText>(&data)) {
+      ASSIGN_OR_RETURN(auto prompt_view, text->GetRawTextString());
+      absl::string_view whole_prompt(prompt_view);
+      int last_pos = 0;
+      std::string media_type;
+      std::string media_path;
+
+      while (RE2::FindAndConsume(&prompt_view, re_media, &media_type,
+                                 &media_path)) {
+        if (!std::filesystem::exists(media_path)) {
+          return absl::NotFoundError(absl::StrCat(
+              "[ERROR] Media path ", media_path, " does not exist."));
+        }
+        // Calculate the position of the match in the original string
+        const int media_string_size =
+            media_type.size() + media_path.size() + kBracketShift;
+        int match_pos =
+            whole_prompt.size() - prompt_view.size() - media_string_size;
+        // Add text part before the media path
+        if (match_pos > last_pos) {
+          content_list.push_back(
+              {{"type", "text"},
+               {"text", whole_prompt.substr(last_pos, match_pos - last_pos)}});
+        }
+        if (media_type == "image" && !settings.vision_backend.has_value()) {
+          return absl::InvalidArgumentError(
+              "Image backend is not specified. Please specify the vision "
+              "backend "
+              "with --vision_backend=<cpu|gpu>");
+        }
+        if (media_type == "audio" && !settings.audio_backend.has_value()) {
+          return absl::InvalidArgumentError(
+              "Audio backend is not specified. Please specify the audio "
+              "backend "
+              "with --audio_backend=<cpu|gpu>");
+        }
+        // Add media part
+        content_list.push_back({{"type", media_type}, {"path", media_path}});
+        last_pos = match_pos + media_string_size;
+      }
+      // Add any remaining text part
+      if (!prompt_view.empty()) {
+        content_list.push_back({{"type", "text"}, {"text", prompt_view}});
+      }
+    } else if (const auto* image = std::get_if<InputImage>(&data)) {
+      ASSIGN_OR_RETURN(auto raw_bytes, image->GetRawImageBytes());
+      content_list.push_back(
+          {{"type", "image"}, {"blob", absl::Base64Escape(raw_bytes)}});
+    } else if (const auto* audio = std::get_if<InputAudio>(&data)) {
+      // TODO(b/453071109): Add support for audio.
+    }
+  }
+
+  return absl::OkStatus();
+}
 
 absl::Status RunLiteRtLm(const LiteRtLmSettings& settings,
                          std::vector<LitertLmMetrics>* metrics) {
