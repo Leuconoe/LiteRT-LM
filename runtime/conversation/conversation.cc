@@ -40,6 +40,7 @@
 #include "runtime/components/constrained_decoding/constraint_provider_config.h"
 #include "runtime/components/constrained_decoding/constraint_provider_factory.h"
 #include "runtime/components/prompt_template.h"
+#include "runtime/conversation/channel_util.h"
 #include "runtime/conversation/internal_callback_util.h"
 #include "runtime/conversation/io_types.h"
 #include "runtime/conversation/model_data_processor/config_registry.h"
@@ -448,6 +449,9 @@ absl::Status Conversation::SendMessageAsync(
 
   ASSIGN_OR_RETURN(const std::string& single_turn_text,
                    GetSingleTurnText(message, optional_args));
+  auto open_channel_name =
+      GetOpenChannelName(single_turn_text, config_.GetChannels());
+
   {
     absl::MutexLock lock(history_mutex_);  // NOLINT
     if (message.is_array()) {
@@ -506,14 +510,14 @@ absl::Status Conversation::SendMessageAsync(
       this->history_.pop_back();
     };
 
-    auto internal_callback =
-        std::make_shared<absl::AnyInvocable<void(absl::StatusOr<Responses>)>>(
-            CreateInternalCallback(
-                *model_data_processor_,
-                optional_args.args.value_or(std::monostate()),
-                config_.GetChannels(), std::move(user_callback),
-                std::move(cancel_callback),
-                std::move(complete_message_callback)));
+  auto internal_callback =
+      std::make_shared<absl::AnyInvocable<void(absl::StatusOr<Responses>)>>(
+          CreateInternalCallback(
+              *model_data_processor_,
+              optional_args.args.value_or(std::monostate()),
+              config_.GetChannels(), std::move(user_callback),
+              std::move(cancel_callback), std::move(complete_message_callback),
+              open_channel_name));
 
     ASSIGN_OR_RETURN(
         auto decode_config,

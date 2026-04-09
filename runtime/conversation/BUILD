@@ -53,7 +53,6 @@ cc_library(
         "@com_google_absl//absl/status",
         "@com_google_absl//absl/status:statusor",
         "@com_google_absl//absl/strings:string_view",
-        "@nlohmann_json//:json",
         "//runtime/engine:io_types",
         "@com_googlesource_code_re2//:re2",
     ],
@@ -105,6 +104,7 @@ cc_library(
     srcs = ["conversation.cc"],
     hdrs = ["conversation.h"],
     deps = [
+        ":channel_util",
         ":internal_callback_util",
         ":io_types",
         ":prompt_utils",

@@ -709,5 +709,33 @@ TEST_F(InternalCallbackChannelTest,
   EXPECT_EQ(final_message["channels"]["thought"], "I am thinking");
 }
 
+TEST_F(InternalCallbackChannelTest, OpenChannelAtStartNoEndTag) {
+  auto user_callback = CreateUserMessageCallback(output_, done_, status_);
+  auto callback = CreateInternalCallback(
+      *model_data_processor_, processor_args_, channels_,
+      std::move(user_callback), /*cancel_callback=*/nullptr,
+      /*complete_message_callback=*/nullptr, /*open_channel_name=*/"thought");
+
+  callback(Responses(TaskState::kProcessing, {"I am thinking"}));
+  callback(Responses(TaskState::kDone));
+
+  EXPECT_THAT(output_, ElementsAre(ChannelMessage("I am thinking", "thought")));
+}
+
+TEST_F(InternalCallbackChannelTest, OpenChannelAtStartWithEndTag) {
+  auto user_callback = CreateUserMessageCallback(output_, done_, status_);
+  auto callback = CreateInternalCallback(
+      *model_data_processor_, processor_args_, channels_,
+      std::move(user_callback), /*cancel_callback=*/nullptr,
+      /*complete_message_callback=*/nullptr, /*open_channel_name=*/"thought");
+
+  callback(Responses(TaskState::kProcessing, {"hmm<channel|>"}));
+  callback(Responses(TaskState::kProcessing, {" world"}));
+  callback(Responses(TaskState::kDone));
+
+  EXPECT_THAT(output_, ElementsAre(ChannelMessage("hmm", "thought"),
+                                   TextMessage(" world")));
+}
+
 }  // namespace
 }  // namespace litert::lm

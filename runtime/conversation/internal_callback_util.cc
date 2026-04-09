@@ -17,6 +17,7 @@
 
 #include <algorithm>
 #include <cstddef>
+#include <optional>
 #include <string>
 #include <utility>
 #include <vector>
@@ -97,7 +98,9 @@ void SendCompleteMessage(
     DataProcessorArguments processor_args, int cursor,
     absl::AnyInvocable<void(Message)>& complete_message_callback,
     const std::string& active_channel_name,
-    const std::vector<Channel>& channels) {
+    const std::vector<Channel>& channels,
+    const std::optional<std::string>& initial_open_channel_name =
+        std::nullopt) {
   // Send remaining un-flushed text at the end of generation.
   if (cursor < accumulated_response_text.size()) {
     if (!active_channel_name.empty()) {
@@ -115,7 +118,8 @@ void SendCompleteMessage(
                       {std::string(accumulated_response_text)});
 
   // Extract channel content from the responses. Modifies responses in place.
-  auto extracted_channels = ExtractChannelContent(channels, responses);
+  auto extracted_channels =
+      ExtractChannelContent(channels, responses, initial_open_channel_name);
   if (!extracted_channels.ok()) {
     user_callback(extracted_channels.status());
     return;
@@ -235,18 +239,38 @@ absl::AnyInvocable<void(absl::StatusOr<Responses>)> CreateInternalCallback(
     const std::vector<Channel>& custom_channels,
     absl::AnyInvocable<void(absl::StatusOr<Message>)> user_callback,
     absl::AnyInvocable<void()> cancel_callback,
-    absl::AnyInvocable<void(Message)> complete_message_callback) {
-  return [&model_data_processor, processor_args, custom_channels,
+    absl::AnyInvocable<void(Message)> complete_message_callback,
+    const std::optional<std::string>& open_channel_name) {
+  auto channels = GetChannels(model_data_processor, custom_channels);
+
+  bool initial_inside_channel = false;
+  std::string initial_active_channel_end;
+  std::string initial_active_channel_name;
+
+  if (open_channel_name.has_value()) {
+    auto open_channel_it = std::find_if(
+        channels.begin(), channels.end(), [&](const auto& channel) {
+          return channel.channel_name == *open_channel_name;
+        });
+    if (open_channel_it != channels.end()) {
+      initial_inside_channel = true;
+      initial_active_channel_end = open_channel_it->end;
+      initial_active_channel_name = open_channel_it->channel_name;
+    }
+  }
+
+  return [&model_data_processor, processor_args,
           user_callback = std::move(user_callback),
           cancel_callback = std::move(cancel_callback),
           complete_message_callback = std::move(complete_message_callback),
           accumulated_response_text = std::string(), cursor = size_t(0),
-          channels = GetChannels(model_data_processor, custom_channels),
-          inside_channel = false, active_channel_end = std::string(),
+          channels = std::move(channels),
+          inside_channel = initial_inside_channel,
+          active_channel_end = std::move(initial_active_channel_end),
           active_channel_start_pos = size_t(0),
           active_channel_start_size = size_t(0),
-          active_channel_name =
-              std::string()](absl::StatusOr<Responses> responses) mutable {
+          active_channel_name = std::move(initial_active_channel_name),
+          open_channel_name](absl::StatusOr<Responses> responses) mutable {
     if (!responses.ok()) {
       // If the error is due to cancellation, then we should trigger the cancel
       // callback for removing the last message from the history.
@@ -265,7 +289,8 @@ absl::AnyInvocable<void(absl::StatusOr<Responses>)> CreateInternalCallback(
       SendCompleteMessage(user_callback, accumulated_response_text,
                           model_data_processor, processor_args, cursor,
                           complete_message_callback,
-                          inside_channel ? active_channel_name : "", channels);
+                          inside_channel ? active_channel_name : "", channels,
+                          open_channel_name);
       cursor = accumulated_response_text.size();
       return;
     }
