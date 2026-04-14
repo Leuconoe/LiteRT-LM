@@ -38,7 +38,11 @@ constexpr char kPathSeparator = '/';
 
 std::pair<absl::string_view, absl::string_view> SplitPath(
     absl::string_view path) {
+#if defined(_WIN32)
+  absl::string_view::size_type pos = path.find_last_of("\\/");
+#else
   absl::string_view::size_type pos = path.find_last_of(kPathSeparator);
+#endif
 
   // Handle the case with no '/' or '\' in 'path'.
   if (pos == absl::string_view::npos)
