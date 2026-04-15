@@ -342,6 +342,14 @@ absl::Status DecompressData(const uint8_t* compressed_data,
   }
   uint64_t uncompressed_buffer_size;
   std::memcpy(&uncompressed_buffer_size, compressed_data, sizeof(uint64_t));
+
+  constexpr uint64_t kMaxUncompressedSize = 1ULL << 30;  // 1 GB
+  if (uncompressed_buffer_size > kMaxUncompressedSize) {
+    return absl::InvalidArgumentError(
+        absl::StrFormat("Uncompressed size %d exceeds maximum allowed size %d.",
+                        uncompressed_buffer_size, kMaxUncompressedSize));
+  }
+
   output->resize(uncompressed_buffer_size);
 
   // Decompress the data.

@@ -14,6 +14,7 @@
 
 #include "runtime/util/litert_lm_loader.h"
 
+#include <cstddef>
 #include <cstdint>
 #include <filesystem>  // NOLINT: Required for path manipulation.
 #include <fstream>
@@ -67,6 +68,34 @@ void WriteDummyModelFile(
   // Write metadata
   file.write(reinterpret_cast<const char*>(builder.GetBufferPointer()),
              builder.GetSize());
+}
+
+void WriteDummyModelFile(const std::string& path,
+                         const flatbuffers::FlatBufferBuilder& builder,
+                         uint64_t large_decompression_size = 0) {
+  std::ofstream file(path, std::ios::binary);
+  file.write("LITERTLM", 8);
+  uint32_t major = 1;
+  uint32_t minor = 0;
+  uint32_t patch = 0;
+  uint32_t padding = 0;
+  file.write(reinterpret_cast<const char*>(&major), 4);
+  file.write(reinterpret_cast<const char*>(&minor), 4);
+  file.write(reinterpret_cast<const char*>(&patch), 4);
+  file.write(reinterpret_cast<const char*>(&padding), 4);
+
+  uint64_t header_size = builder.GetSize();
+  uint64_t header_end_offset = 32 + header_size;
+  file.write(reinterpret_cast<const char*>(&header_end_offset), 8);
+
+  file.write(reinterpret_cast<const char*>(builder.GetBufferPointer()),
+             header_size);
+
+  if (large_decompression_size > 0) {
+    file.write(reinterpret_cast<const char*>(&large_decompression_size),
+               sizeof(large_decompression_size));
+  }
+  file.close();
 }
 
 TEST(LitertLmLoaderTest, InitializeWithInvalidOffsets) {
@@ -183,6 +212,47 @@ TEST(LitertLmLoaderTest, GetSectionLocationSizeMatch) {
                        loader.GetSectionLocation(metadata_key));
   EXPECT_EQ(metadata_location.second - metadata_location.first,
             loader.GetLlmMetadata().Size());
+}
+
+TEST(LitertLmLoaderTest, GetHuggingFaceTokenizerLargeDecompressionSize) {
+  flatbuffers::FlatBufferBuilder builder;
+
+  auto section_object = schema::CreateSectionObject(
+      builder, 0, 0, 8, schema::AnySectionDataType_HF_Tokenizer_Zlib);
+  std::vector<flatbuffers::Offset<schema::SectionObject>>
+      section_objects_vector = {section_object};
+  auto section_metadata_offset = schema::CreateSectionMetadata(
+      builder, builder.CreateVector(section_objects_vector));
+  auto root_offset =
+      schema::CreateLiteRTLMMetaData(builder, 0, section_metadata_offset);
+  builder.Finish(root_offset);
+
+  size_t header_size = builder.GetSize();
+  size_t total_header_size = 32 + header_size;
+
+  builder.Clear();
+  section_object = schema::CreateSectionObject(
+      builder, 0, total_header_size, total_header_size + 8,
+      schema::AnySectionDataType_HF_Tokenizer_Zlib);
+  section_objects_vector = {section_object};
+  section_metadata_offset = schema::CreateSectionMetadata(
+      builder, builder.CreateVector(section_objects_vector));
+  root_offset =
+      schema::CreateLiteRTLMMetaData(builder, 0, section_metadata_offset);
+  builder.Finish(root_offset);
+
+  auto header_path =
+      std::filesystem::path(::testing::TempDir()) / "large_decompression.bin";
+  uint64_t large_size = 1024ULL * 1024ULL * 1024ULL + 1ULL;  // 1GB + 1 byte
+  WriteDummyModelFile(header_path.string(), builder, large_size);
+
+  auto model_file = ScopedFile::Open(header_path.string());
+  ASSERT_TRUE(model_file.ok());
+
+  ASSERT_OK_AND_ASSIGN(auto loader, LitertLmLoader::Create(std::move(model_file.value())));
+
+  auto tokenizer = loader->GetHuggingFaceTokenizer();
+  EXPECT_FALSE(tokenizer.has_value());
 }
 
 }  // namespace
