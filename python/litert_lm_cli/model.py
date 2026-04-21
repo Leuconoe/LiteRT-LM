@@ -19,6 +19,7 @@ import glob
 import importlib.util
 import inspect
 import json
+import mimetypes
 import os
 import pathlib
 import traceback
@@ -37,6 +38,30 @@ try:
   _HAS_ADB = True
 except ImportError:
   _HAS_ADB = False
+
+
+def get_attachment_type(path: str) -> str:
+  """Returns the attachment type (audio or image) from the file path.
+
+  Args:
+    path: Path to the attachment.
+
+  Returns:
+    'audio' or 'image'.
+
+  Raises:
+    ValueError: If the file type cannot be determined or is unsupported.
+  """
+  mime_type, _ = mimetypes.guess_type(path)
+  if mime_type:
+    if mime_type.startswith("audio/"):
+      return "audio"
+    elif mime_type.startswith("image/"):
+      return "image"
+    else:
+      raise ValueError(f"Unsupported attachment type for '{path}': {mime_type}")
+  else:
+    raise ValueError(f"Could not determine file type for attachment '{path}'.")
 
 
 def load_preset(preset: str):
@@ -153,6 +178,9 @@ class Model:
       no_template: bool = False,
       max_num_tokens: int | None = None,
       filter_channel_content_from_kv_cache: bool = False,
+      vision_backend: str | None = None,
+      audio_backend: str | None = None,
+      attachments: tuple[str, ...] = (),
   ):
     """Runs the model interactively or with a single prompt.
 
@@ -169,6 +197,9 @@ class Model:
       max_num_tokens: Maximum number of tokens for the KV cache.
       filter_channel_content_from_kv_cache: Whether to filter channel content
         from the KV cache.
+      vision_backend: The hardware backend used for vision encoding.
+      audio_backend: The hardware backend used for audio encoding.
+      attachments: A tuple of paths to attachments.
     """
     if not self.exists():
       click.echo(
@@ -181,6 +212,12 @@ class Model:
 
     try:
       backend_val = _parse_backend(backend)
+      vision_backend_val = (
+          _parse_backend(vision_backend) if vision_backend else None
+      )
+      audio_backend_val = (
+          _parse_backend(audio_backend) if audio_backend else None
+      )
 
       if is_android:
         if not _HAS_ADB:
@@ -189,6 +226,8 @@ class Model:
             self.model_path,
             backend=backend_val,
             max_num_tokens=max_num_tokens,
+            vision_backend=vision_backend_val,
+            audio_backend=audio_backend_val,
         )
       else:
         engine_cm = litert_lm.Engine(
@@ -196,6 +235,8 @@ class Model:
             backend=backend_val,
             enable_speculative_decoding=enable_speculative_decoding,
             max_num_tokens=max_num_tokens,
+            vision_backend=vision_backend_val,
+            audio_backend=audio_backend_val,
         )
 
       with engine_cm as engine:
@@ -225,7 +266,7 @@ class Model:
             if isinstance(runner, litert_lm.AbstractSession):
               self._execute_raw_prompt(runner, prompt)
             elif isinstance(runner, litert_lm.AbstractConversation):
-              self._execute_prompt(runner, prompt)
+              self._execute_prompt(runner, prompt, attachments=attachments)
             return
 
           click.echo(
@@ -246,6 +287,7 @@ class Model:
               key_bindings=self._create_keybindings(),
           )
 
+          is_first_prompt = True
           while True:
             try:
               user_prompt = prompt_session.prompt(
@@ -266,10 +308,13 @@ class Model:
                     user_prompt,
                 )
               elif isinstance(runner, litert_lm.AbstractConversation):
-                self._execute_prompt(
-                    runner,
-                    user_prompt,
-                )
+                if is_first_prompt:
+                  self._execute_prompt(
+                      runner, user_prompt, attachments=attachments
+                  )
+                  is_first_prompt = False
+                else:
+                  self._execute_prompt(runner, user_prompt)
 
             except EOFError:
               break
@@ -286,11 +331,32 @@ class Model:
       traceback.print_exc()
 
   def _execute_prompt(
-      self, conversation: litert_lm.AbstractConversation, prompt: str
+      self,
+      conversation: litert_lm.AbstractConversation,
+      prompt: str,
+      attachments: tuple[str, ...] = (),
   ):
     """Executes a single prompt and prints the result."""
     self.active_channel = None
-    stream = conversation.send_message_async(prompt)
+
+    if attachments:
+      content = []
+      for path in attachments:
+        abs_path = os.path.abspath(path)
+        content.append(
+            {"type": get_attachment_type(abs_path), "path": abs_path}
+        )
+
+      if prompt:
+        content.append({"type": "text", "text": prompt})
+
+      stream = conversation.send_message_async({
+          "role": "user",
+          "content": content,
+      })
+    else:
+      stream = conversation.send_message_async(prompt)
+
     try:
       for chunk in stream:
         # Handle regular content

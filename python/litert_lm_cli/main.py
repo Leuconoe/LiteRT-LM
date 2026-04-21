@@ -458,6 +458,27 @@ def benchmark(
     default=False,
     help="Whether to filter channel content from the KV cache.",
 )
+@click.option(
+    "--vision-backend",
+    type=click.Choice(["cpu", "gpu", ""], case_sensitive=False),
+    default=None,
+    help="The backend to use for vision encoding.",
+)
+@click.option(
+    "--audio-backend",
+    type=click.Choice(["cpu", "gpu", ""], case_sensitive=False),
+    default=None,
+    help="The backend to use for audio encoding.",
+)
+@click.option(
+    "--attachment",
+    multiple=True,
+    type=click.Path(dir_okay=False),
+    help=(
+        "Path to an attachment (image or audio only). Can be specified multiple"
+        " times. Attachements are placed before the first user text prompt."
+    ),
+)
 @common_inference_options
 def run(
     model_reference,
@@ -472,6 +493,9 @@ def run(
     huggingface_token=None,
     max_num_tokens=None,
     filter_channel_content_from_kv_cache=False,
+    vision_backend=None,
+    audio_backend=None,
+    attachment=(),
 ):
   r"""Runs a LiteRT-LM model interactively or with a single prompt.
 
@@ -494,7 +518,56 @@ def run(
     max_num_tokens: Maximum number of tokens for the KV cache.
     filter_channel_content_from_kv_cache: Whether to filter channel content from
       the KV cache.
+    vision_backend: The backend to use for vision tasks.
+    audio_backend: The backend to use for audio tasks.
+    attachment: Path to an attachment (e.g., image or audio).
   """
+  if attachment and no_template:
+    click.echo(
+        click.style(
+            "Error: Attachments are not supported with --no-template.",
+            fg="red",
+        )
+    )
+    return
+
+  expanded_attachments = []
+  has_audio = False
+  has_image = False
+
+  for a in attachment:
+    expanded = os.path.expanduser(a)
+    if not os.path.exists(expanded):
+      raise click.BadParameter(f"File '{a}' does not exist.")
+    expanded_attachments.append(expanded)
+
+    try:
+      a_type = model.get_attachment_type(expanded)
+      if a_type == "audio":
+        has_audio = True
+      elif a_type == "image":
+        has_image = True
+    except ValueError as e:
+      raise click.BadParameter(str(e)) from e
+
+  if has_audio and not audio_backend:
+    click.echo(
+        click.style(
+            "Error: Audio attachments require --audio-backend to be set.",
+            fg="red",
+        )
+    )
+    return
+
+  if has_image and not vision_backend:
+    click.echo(
+        click.style(
+            "Error: Image attachments require --vision-backend to be set.",
+            fg="red",
+        )
+    )
+    return
+
   # If the stdin is not connected to the terminal, e.g., piped or redirected
   # input, then handle the input as the one-shot prompt.
   #
@@ -557,6 +630,9 @@ def run(
       no_template=no_template,
       max_num_tokens=max_num_tokens,
       filter_channel_content_from_kv_cache=filter_channel_content_from_kv_cache,
+      vision_backend=vision_backend,
+      audio_backend=audio_backend,
+      attachments=tuple(expanded_attachments),
   )
 
 
