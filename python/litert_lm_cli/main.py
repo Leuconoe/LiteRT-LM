@@ -479,6 +479,42 @@ def benchmark(
         " times. Attachements are placed before the first user text prompt."
     ),
 )
+@click.option(
+    "--top-k",
+    type=click.IntRange(min=1),
+    default=None,
+    help=(
+        "The number of top logits used during sampling. If not set, use the"
+        " default from the model or engine."
+    ),
+)
+@click.option(
+    "--top-p",
+    type=click.FloatRange(min=0.0, max=1.0),
+    default=None,
+    help=(
+        "The cumulative probability threshold for nucleus sampling. If not set,"
+        " use the default from the model or engine."
+    ),
+)
+@click.option(
+    "--temperature",
+    type=click.FloatRange(min=0.0),
+    default=None,
+    help=(
+        "The temperature to use for sampling. If not set, use the default from"
+        " the model or engine."
+    ),
+)
+@click.option(
+    "--seed",
+    type=int,
+    default=None,
+    help=(
+        "The seed to use for randomization. If not set, use the default from"
+        " the model or engine."
+    ),
+)
 @common_inference_options
 def run(
     model_reference,
@@ -496,6 +532,10 @@ def run(
     vision_backend=None,
     audio_backend=None,
     attachment=(),
+    top_k: int | None = None,
+    top_p: float | None = None,
+    temperature: float | None = None,
+    seed: int | None = None,
 ):
   r"""Runs a LiteRT-LM model interactively or with a single prompt.
 
@@ -521,6 +561,10 @@ def run(
     vision_backend: The backend to use for vision tasks.
     audio_backend: The backend to use for audio tasks.
     attachment: Path to an attachment (e.g., image or audio).
+    top_k: The number of top logits used during sampling.
+    top_p: The cumulative probability threshold for nucleus sampling.
+    temperature: The temperature to use for sampling.
+    seed: The seed to use for randomization.
   """
   if attachment and no_template:
     click.echo(
@@ -633,6 +677,10 @@ def run(
       vision_backend=vision_backend,
       audio_backend=audio_backend,
       attachments=tuple(expanded_attachments),
+      top_k=top_k,
+      top_p=top_p,
+      temperature=temperature,
+      seed=seed,
   )
 
 
