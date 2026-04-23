@@ -55,6 +55,7 @@
 #include "runtime/framework/threadpool.h"
 #include "runtime/proto/llm_metadata.pb.h"
 #include "runtime/proto/sampler_params.pb.h"
+#include "runtime/util/logging.h"
 #include "runtime/util/status_macros.h"  // NOLINT
 
 namespace litert::lm {
@@ -72,6 +73,11 @@ absl::StatusOr<Environment&> GetEnvironment(EngineSettings& engine_settings,
   static absl::NoDestructor<absl::StatusOr<Environment>> kEnvironment(
       [&]() -> absl::StatusOr<Environment> {
         std::vector<EnvironmentOptions::Option> env_options;
+        if (auto severity = GetMinLogSeverity()) {
+          env_options.push_back(::litert::EnvironmentOptions::Option{
+              ::litert::EnvironmentOptions::Tag::kMinLoggerSeverity,
+              ToLiteRtLogSeverityInt8(*severity)});
+        }
         const auto& main_executor_settings =
             engine_settings.GetMainExecutorSettings();
 
