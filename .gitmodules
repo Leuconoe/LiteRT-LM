@@ -1,0 +1,3 @@
+[submodule "LiteRT-LM-Unity"]
+	path = LiteRT-LM-Unity
+	url = https://github.com/Leuconoe/LiteRT-LM-Unity
